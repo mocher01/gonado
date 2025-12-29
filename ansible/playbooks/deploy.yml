@@ -1,0 +1,48 @@
+---
+- name: Deploy Gonado Application
+  hosts: gonado
+  become: yes
+
+  vars_files:
+    - ../group_vars/all.yml
+
+  tasks:
+    - name: Pull latest code
+      git:
+        repo: "https://github.com/mocher01/gonado.git"
+        dest: "{{ app_dir }}"
+        version: main
+        force: yes
+      when: use_git | default(false)
+
+    - name: Copy environment file
+      template:
+        src: ../roles/app/templates/.env.j2
+        dest: "{{ app_dir }}/.env"
+        mode: '0600'
+
+    - name: Build and start containers
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        build: always
+        state: present
+      register: docker_result
+
+    - name: Run database migrations
+      community.docker.docker_container_exec:
+        container: gonado-backend
+        command: alembic upgrade head
+      ignore_errors: yes
+
+    - name: Wait for services to be healthy
+      uri:
+        url: "http://localhost:{{ backend_port }}/health"
+        status_code: 200
+      register: health_check
+      until: health_check.status == 200
+      retries: 30
+      delay: 5
+
+    - name: Display deployment status
+      debug:
+        msg: "Gonado deployed successfully!"

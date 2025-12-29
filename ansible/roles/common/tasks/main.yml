@@ -1,0 +1,41 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install required packages
+  apt:
+    name:
+      - curl
+      - git
+      - htop
+      - vim
+      - ufw
+      - ca-certificates
+      - gnupg
+    state: present
+
+- name: Configure firewall - allow SSH
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+
+- name: Configure firewall - allow HTTP
+  ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+
+- name: Configure firewall - allow HTTPS
+  ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+
+- name: Enable firewall
+  ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
