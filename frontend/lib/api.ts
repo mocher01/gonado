@@ -1,6 +1,7 @@
 import type { User, Goal, Node, Update, AuthTokens, Notification, LeaderboardEntry } from "@/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Use relative URL - requests proxied through Next.js rewrites to backend
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 class ApiClient {
   private accessToken: string | null = null;
@@ -29,7 +30,20 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail || `HTTP ${response.status}`);
+      let message = `HTTP ${response.status}`;
+      if (error.detail) {
+        if (typeof error.detail === 'string') {
+          message = error.detail;
+        } else if (Array.isArray(error.detail)) {
+          // FastAPI validation errors
+          message = error.detail.map((e: { msg?: string; loc?: string[] }) =>
+            e.msg || JSON.stringify(e)
+          ).join(', ');
+        } else {
+          message = JSON.stringify(error.detail);
+        }
+      }
+      throw new Error(message);
     }
 
     return response.json();

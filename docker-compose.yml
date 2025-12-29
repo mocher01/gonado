@@ -95,8 +95,11 @@ services:
     depends_on:
       - backend
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8000}
+      # Internal URL for server-side proxy (Docker network)
+      INTERNAL_BACKEND_URL: http://backend:8000
+      # Public URLs for client-side (relative paths, proxied through Next.js)
+      NEXT_PUBLIC_API_URL: ""
+      NEXT_PUBLIC_WS_URL: ws://162.55.213.90:7901
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     volumes:

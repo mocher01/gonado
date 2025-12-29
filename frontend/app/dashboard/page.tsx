@@ -26,7 +26,8 @@ export default function DashboardPage() {
 
   const loadGoals = async () => {
     try {
-      const response = await api.getGoals();
+      // Pass user_id to get all user's goals including private ones
+      const response = await api.getGoals({ user_id: user?.id });
       setGoals(response.goals || []);
     } catch (error) {
       console.error("Failed to load goals:", error);

@@ -23,6 +23,11 @@ async def create_goal(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new goal."""
+    # Convert timezone-aware datetime to naive (for TIMESTAMP WITHOUT TIME ZONE)
+    target_date = goal_data.target_date
+    if target_date and target_date.tzinfo is not None:
+        target_date = target_date.replace(tzinfo=None)
+
     goal = Goal(
         user_id=current_user.id,
         title=goal_data.title,
@@ -30,7 +35,7 @@ async def create_goal(
         category=goal_data.category,
         visibility=goal_data.visibility,
         world_theme=goal_data.world_theme,
-        target_date=goal_data.target_date
+        target_date=target_date
     )
     db.add(goal)
     await db.flush()

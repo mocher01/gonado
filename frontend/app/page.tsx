@@ -5,7 +5,31 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-8">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-slate-900/80 border-b border-white/10">
+        <div className="max-w-6xl mx-auto px-8 py-4 flex items-center justify-between">
+          <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent">
+            Gonado
+          </Link>
+          <nav className="flex items-center gap-6">
+            <Link href="/discover" className="text-gray-400 hover:text-white transition-colors">
+              Discover
+            </Link>
+            <Link href="/login" className="text-gray-400 hover:text-white transition-colors">
+              Sign In
+            </Link>
+            <Link
+              href="/register"
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary-500 to-accent-500 text-white font-medium hover:shadow-lg hover:shadow-primary-500/25 transition-all"
+            >
+              Get Started
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      <div className="flex flex-col items-center justify-center min-h-screen p-8 pt-24">
       {/* Hero Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -86,18 +110,36 @@ export default function Home() {
         </motion.div>
       </motion.div>
 
+        {/* Discover CTA */}
+        <motion.div
+          className="mt-16 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+        >
+          <p className="text-gray-500 mb-4">See what others are achieving</p>
+          <Link
+            href="/discover"
+            className="inline-flex items-center gap-2 text-primary-400 hover:text-primary-300 transition-colors"
+          >
+            <span>Explore Public Goals</span>
+            <span>&rarr;</span>
+          </Link>
+        </motion.div>
+      </div>
+
       {/* Floating elements animation */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         {[...Array(20)].map((_, i) => (
           <motion.div
             key={i}
             className="absolute w-2 h-2 bg-primary-500/30 rounded-full"
-            initial={{
-              x: Math.random() * (typeof window !== "undefined" ? window.innerWidth : 1000),
-              y: Math.random() * (typeof window !== "undefined" ? window.innerHeight : 1000),
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
             }}
             animate={{
-              y: [null, Math.random() * -200],
+              y: [0, Math.random() * -200],
               opacity: [0.3, 0.8, 0.3],
             }}
             transition={{

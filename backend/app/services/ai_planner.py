@@ -47,7 +47,10 @@ Choose a world_theme that matches the nature of the goal:
 
 class AIPlannerService:
     def __init__(self):
-        self.client = Anthropic(api_key=settings.ANTHROPIC_API_KEY) if settings.ANTHROPIC_API_KEY else None
+        # Only create client if API key is set and not a placeholder
+        api_key = settings.ANTHROPIC_API_KEY
+        has_valid_key = api_key and not api_key.startswith("your-") and len(api_key) > 20
+        self.client = Anthropic(api_key=api_key) if has_valid_key else None
 
     async def generate_plan(
         self,
