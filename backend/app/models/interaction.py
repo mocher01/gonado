@@ -41,10 +41,3 @@ class Interaction(Base):
 
     # Relationships
     user = relationship("User")
-    update = relationship(
-        "Update",
-        back_populates="interactions",
-        foreign_keys=[target_id],
-        primaryjoin="and_(Interaction.target_id==Update.id, Interaction.target_type=='update')",
-        viewonly=True
-    )

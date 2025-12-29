@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gonado Login Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; background: #1a1a2e; color: white; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #333; background: #16213e; color: white; }
+        button { width: 100%; padding: 15px; background: #0ea5e9; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0284c7; }
+        #result { margin-top: 20px; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-break: break-all; }
+        .success { background: #064e3b; }
+        .error { background: #7f1d1d; }
+        .info { background: #1e3a5f; }
+    </style>
+</head>
+<body>
+    <h1>Gonado Login Test</h1>
+    <p>API URL: <code id="apiUrl"></code></p>
+
+    <h3>1. Test API Connection</h3>
+    <button onclick="testHealth()">Test Health Endpoint</button>
+
+    <h3>2. Test Login</h3>
+    <input type="email" id="email" placeholder="Email" value="admin@gonado.app">
+    <input type="password" id="password" placeholder="Password" value="admin123">
+    <button onclick="testLogin()">Test Login</button>
+
+    <div id="result" class="info">Click a button to test...</div>
+
+    <script>
+        const API_URL = 'http://162.55.213.90:7902';
+        document.getElementById('apiUrl').textContent = API_URL;
+
+        async function testHealth() {
+            const result = document.getElementById('result');
+            result.className = 'info';
+            result.textContent = 'Testing health endpoint...';
+
+            try {
+                const response = await fetch(API_URL + '/health');
+                const data = await response.json();
+                result.className = 'success';
+                result.textContent = 'SUCCESS!\n\nResponse:\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = 'FAILED!\n\nError: ' + error.message + '\n\nThis means your browser cannot reach ' + API_URL;
+            }
+        }
+
+        async function testLogin() {
+            const result = document.getElementById('result');
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            result.className = 'info';
+            result.textContent = 'Testing login...';
+
+            try {
+                const response = await fetch(API_URL + '/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    result.className = 'success';
+                    result.textContent = 'LOGIN SUCCESS!\n\nAccess Token:\n' + data.access_token.substring(0, 50) + '...\n\nYou can now use the main login page.';
+                } else {
+                    result.className = 'error';
+                    result.textContent = 'LOGIN FAILED!\n\nServer Response:\n' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = 'FETCH FAILED!\n\nError: ' + error.message + '\n\nPossible causes:\n1. Browser cannot reach port 7902\n2. CORS issue\n3. Network/firewall blocking';
+            }
+        }
+    </script>
+</body>
+</html>

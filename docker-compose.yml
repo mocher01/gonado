@@ -78,7 +78,7 @@ services:
       MINIO_USE_SSL: "false"
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      CORS_ORIGINS: '["http://localhost:3000","http://localhost:8000"]'
+      CORS_ORIGINS: '["http://localhost:7901","http://162.55.213.90:7901"]'
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:

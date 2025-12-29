@@ -33,4 +33,3 @@ class Update(Base):
     # Relationships
     node = relationship("Node", back_populates="updates")
     user = relationship("User", back_populates="updates")
-    interactions = relationship("Interaction", back_populates="update", lazy="selectin")
