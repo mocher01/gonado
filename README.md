@@ -37,10 +37,10 @@ Transform your goals into epic journeys with AI-powered planning and community s
    ```
 
 3. Access the application:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8000
-   - API Docs: http://localhost:8000/docs
-   - MinIO Console: http://localhost:9001
+   - Frontend: http://localhost:7901
+   - Backend API: http://localhost:7902
+   - API Docs: http://localhost:7902/docs
+   - MinIO Console: http://localhost:7906
 
 ## Development
 
