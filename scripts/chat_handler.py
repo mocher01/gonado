@@ -105,6 +105,35 @@ def handle_finalization(conv_id, history):
     NODE TYPES:
     - "task": Regular step (default, most common)
     - "milestone": Major checkpoint (use sparingly, 1-2 per goal max)
+
+    NODE DESCRIPTION FORMAT (CRITICAL):
+    ===================================
+    Descriptions are displayed as TODO lists in the UI. Follow these rules:
+
+    1. USE NEWLINES to separate items:
+       GOOD: "Research local gyms\\nCompare membership prices\\nVisit top 3 options"
+       BAD:  "Research local gyms. Compare membership prices. Visit top 3 options."
+
+    2. NUMBERED LISTS work well:
+       GOOD: "1. Create account\\n2. Set up profile\\n3. Configure notifications"
+
+    3. KEEP ITEMS ACTIONABLE:
+       GOOD: "Call 3 contractors for quotes"
+       BAD:  "You should consider reaching out to some contractors"
+
+    4. NO PROSE PARAGRAPHS:
+       GOOD: "Sign up for course\\nComplete orientation\\nSubmit first assignment"
+       BAD:  "First you'll want to sign up for the course, then complete the orientation..."
+
+    5. EACH ITEM = ONE ACTION:
+       GOOD: "Download app\\nCreate account\\nLink bank"
+       BAD:  "Download app and create account, then link your bank"
+
+    UI VISIBILITY CHECKLIST:
+    ========================
+    - First active node MUST have visible "Complete" button
+    - All description text must be fully visible (no truncation)
+    - Each TODO item should be under 80 characters
     """
     print(f"🎯 User confirmed - creating quest map...")
 
@@ -121,11 +150,20 @@ Generate a JSON object with:
 - target_date: ISO date string or null
 - nodes: Array of steps (5-10 nodes typically). Each node has:
   - title: Short step name (max 50 chars)
-  - description: Detailed guidance (3-5 sentences). For HARD steps, explain WHY difficult and HOW to tackle.
+  - description: TODO-style checklist with NEWLINES between items. Use \\n to separate.
+    Example: "Research options online\\nCompare 3 providers\\nSchedule consultations"
   - order: Sequential number starting from 1
   - node_type: "task" (default) or "milestone" (use sparingly for major checkpoints)
   - can_parallel: Boolean - true ONLY if this step can be done SIMULTANEOUSLY with adjacent steps
   - estimated_duration: Estimated hours to complete (integer)
+
+DESCRIPTION FORMAT (CRITICAL):
+- Use \\n (newline) to separate each action item
+- Each item = ONE clear action verb + task
+- Keep each item under 80 characters
+- NO prose paragraphs, NO long sentences
+- GOOD: "Create account on platform\\nComplete profile setup\\nVerify email address"
+- BAD: "First, you should create an account on the platform. Then complete your profile..."
 
 IMPORTANT RULES:
 1. Keep it SIMPLE - most goals should be sequential (can_parallel: false for all nodes)
@@ -133,11 +171,6 @@ IMPORTANT RULES:
 3. Need at least 2 CONSECUTIVE can_parallel: true nodes to create a parallel branch
 4. Use "milestone" node_type sparingly (1-2 per goal maximum)
 5. First node is always the starting point - no special handling needed
-
-IMPORTANT:
-- Create specific, actionable steps. Focus on hard parts where people fail.
-- Identify opportunities for parallel work to optimize the journey.
-- Add milestone nodes at key achievement points.
 
 Output ONLY valid JSON, no other text."""
 

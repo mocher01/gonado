@@ -142,11 +142,11 @@ export default function GoalDetailPage() {
           {/* Navigation */}
           <div className="flex items-center justify-between mb-8">
             <Link
-              href={user ? "/dashboard" : "/"}
+              href={user ? "/dashboard" : "/discover"}
               className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
             >
               <span>&larr;</span>
-              <span>{user ? "Dashboard" : "Home"}</span>
+              <span>{user ? "Dashboard" : "Discover"}</span>
             </Link>
 
             {/* Share Button */}
@@ -340,11 +340,11 @@ export default function GoalDetailPage() {
             {/* Back button overlay */}
             <div className="absolute top-4 left-4 z-30">
               <Link
-                href={user ? "/dashboard" : "/"}
+                href={user ? "/dashboard" : "/discover"}
                 className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
               >
                 <span>←</span>
-                <span>{user ? "Dashboard" : "Home"}</span>
+                <span>{user ? "Dashboard" : "Discover"}</span>
               </Link>
             </div>
             {/* Share button overlay */}

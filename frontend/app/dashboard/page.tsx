@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const { user, isLoading, isAuthenticated, logout } = useAuth(true);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [goalsLoading, setGoalsLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -33,6 +34,24 @@ export default function DashboardPage() {
       console.error("Failed to load goals:", error);
     } finally {
       setGoalsLoading(false);
+    }
+  };
+
+  const handleDelete = async (goalId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this goal? This cannot be undone.")) {
+      return;
+    }
+    setDeletingId(goalId);
+    try {
+      await api.deleteGoal(goalId);
+      setGoals(goals.filter(g => g.id !== goalId));
+    } catch (error) {
+      console.error("Failed to delete goal:", error);
+      alert("Failed to delete goal");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -158,7 +177,7 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 * index }}
               >
-                <Card hover variant="glass" className="h-full">
+                <Card hover variant="glass" className="h-full relative group">
                   <Link href={`/goals/${goal.id}`} className="block">
                     <div className="flex items-start justify-between mb-3">
                       <span
@@ -194,6 +213,23 @@ export default function DashboardPage() {
                       </div>
                     )}
                   </Link>
+                  {/* Delete button */}
+                  <button
+                    onClick={(e) => handleDelete(goal.id, e)}
+                    disabled={deletingId === goal.id}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300"
+                    title="Delete goal"
+                  >
+                    {deletingId === goal.id ? (
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                        className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full"
+                      />
+                    ) : (
+                      <span>🗑️</span>
+                    )}
+                  </button>
                 </Card>
               </motion.div>
             ))}

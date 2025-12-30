@@ -24,6 +24,14 @@
  * - Each node connects to the next via lastNodeId tracking
  * - Gateways connect to all parallel nodes (fork) or receive from all (join)
  * - isCompleted determines edge glow/color
+ *
+ * UI CHECKLIST (for future generation):
+ * =====================================
+ * ✓ onComplete callback MUST be passed to ALL TaskNodes with status="active"
+ * ✓ First node receives onComplete just like any other node
+ * ✓ Node width should be fixed (not max-width) to prevent truncation
+ * ✓ Description text must be fully visible without scrolling
+ * ✓ Button "Mark as Complete" must be visible on active nodes
  */
 
 import { useMemo, useEffect, useState } from "react";
@@ -221,7 +229,7 @@ function BPMNQuestMapInner({
 
     let xPosition = 100;  // Start position (no gateway before first node)
     const processedIds = new Set<string>();
-    let lastNodeId: string | null = null;  // Track last node for edge connections
+    let lastNodeId = null as string | null;  // Track last node for edge connections
 
     // Step 3: Build nodes and edges
     // - Sequential nodes: connect directly via lastNodeId

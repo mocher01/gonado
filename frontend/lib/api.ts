@@ -111,6 +111,10 @@ class ApiClient {
     });
   }
 
+  async deleteGoal(id: string): Promise<void> {
+    await this.fetch(`/goals/${id}`, { method: "DELETE" });
+  }
+
   async generatePlan(goalId: string): Promise<{ world_theme: string; nodes: Partial<Node>[] }> {
     return this.fetch(`/goals/${goalId}/generate-plan`, { method: "POST" });
   }
