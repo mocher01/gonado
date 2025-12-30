@@ -324,17 +324,80 @@ export default function GoalDetailPage() {
           </motion.div>
         )}
 
-        {/* Quest Map */}
+        {/* Quest Map - Full Screen */}
         {nodes.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-10"
           >
             <QuestMap
               nodes={nodes}
               worldTheme={goal.world_theme || "mountain"}
+              goalTitle={goal.title}
               onCompleteNode={isOwner ? handleCompleteNode : undefined}
             />
+            {/* Back button overlay */}
+            <div className="absolute top-4 left-4 z-30">
+              <Link
+                href={user ? "/dashboard" : "/"}
+                className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+              >
+                <span>←</span>
+                <span>{user ? "Dashboard" : "Home"}</span>
+              </Link>
+            </div>
+            {/* Share button overlay */}
+            {goal.visibility === "public" && (
+              <div className="absolute top-4 right-4 z-30">
+                <button
+                  onClick={() => setShowShareMenu(!showShareMenu)}
+                  className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+                >
+                  <span>📤</span>
+                  <span>Share</span>
+                </button>
+                <AnimatePresence>
+                  {showShareMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 top-full mt-2 bg-slate-800/95 backdrop-blur-sm border border-white/10 rounded-xl p-2 min-w-[200px]"
+                    >
+                      <button
+                        onClick={handleCopyLink}
+                        className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left"
+                      >
+                        <span>{copied ? "✓" : "🔗"}</span>
+                        <span className="text-white">{copied ? "Copied!" : "Copy Link"}</span>
+                      </button>
+                      <button
+                        onClick={() => handleShare("twitter")}
+                        className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left"
+                      >
+                        <span>🐦</span>
+                        <span className="text-white">Twitter</span>
+                      </button>
+                      <button
+                        onClick={() => handleShare("facebook")}
+                        className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left"
+                      >
+                        <span>📘</span>
+                        <span className="text-white">Facebook</span>
+                      </button>
+                      <button
+                        onClick={() => handleShare("linkedin")}
+                        className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left"
+                      >
+                        <span>💼</span>
+                        <span className="text-white">LinkedIn</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </motion.div>
         )}
 
