@@ -191,17 +191,7 @@ function BPMNQuestMapInner({
 
     let xPosition = 100;
     const processedIds = new Set<string>();
-
-    // Add start marker
-    nodes.push({
-      id: "start",
-      type: "gateway",
-      position: { x: 20, y: 250 },
-      data: {
-        type: "fork",
-        themeColors: { pathColor: theme.pathColor, pathGlow: theme.pathGlow },
-      },
-    });
+    let lastNodeId: string | null = null;
 
     sortedNodes.forEach((node, index) => {
       if (processedIds.has(node.id)) return;
@@ -225,19 +215,15 @@ function BPMNQuestMapInner({
         });
 
         // Connect previous node to fork
-        const prevNodeId =
-          index === 0 ? "start" : sortedNodes[index - 1]?.id || "start";
-        if (!processedIds.has(prevNodeId) || prevNodeId === "start") {
+        if (lastNodeId) {
+          const prevNode = sortedNodes.find((n) => n.id === lastNodeId);
           edges.push({
-            id: `edge-${prevNodeId}-${forkId}`,
-            source: prevNodeId,
+            id: `edge-${lastNodeId}-${forkId}`,
+            source: lastNodeId,
             target: forkId,
             type: "quest",
             data: {
-              isCompleted:
-                prevNodeId === "start" ||
-                sortedNodes.find((n) => n.id === prevNodeId)?.status ===
-                  "completed",
+              isCompleted: prevNode?.status === "completed",
               isCriticalPath: false,
               themeColors: {
                 pathColor: theme.pathColor,
@@ -335,6 +321,7 @@ function BPMNQuestMapInner({
           });
         });
 
+        lastNodeId = joinId;
         xPosition += 80;
       } else {
         // Regular sequential node
@@ -362,19 +349,17 @@ function BPMNQuestMapInner({
           },
         });
 
-        // Connect to previous
-        const prevNode = nodes[nodes.length - 2];
-        if (prevNode) {
+        // Connect to previous node
+        if (lastNodeId) {
+          const prevNode = sortedNodes.find((n) => n.id === lastNodeId);
+          const isGateway = lastNodeId.startsWith("join-") || lastNodeId.startsWith("fork-");
           edges.push({
-            id: `edge-${prevNode.id}-${node.id}`,
-            source: prevNode.id,
+            id: `edge-${lastNodeId}-${node.id}`,
+            source: lastNodeId,
             target: node.id,
             type: "quest",
             data: {
-              isCompleted:
-                prevNode.id === "start" ||
-                sortedNodes.find((n) => n.id === prevNode.id)?.status ===
-                  "completed",
+              isCompleted: isGateway || prevNode?.status === "completed",
               isCriticalPath: false,
               themeColors: {
                 pathColor: theme.pathColor,
@@ -384,6 +369,7 @@ function BPMNQuestMapInner({
           });
         }
 
+        lastNodeId = node.id;
         xPosition += NODE_WIDTH + HORIZONTAL_GAP;
         processedIds.add(node.id);
       }
@@ -408,17 +394,16 @@ function BPMNQuestMapInner({
     });
 
     // Connect last node to end
-    const lastNode = nodes[nodes.length - 2];
-    if (lastNode && lastNode.id !== "start") {
+    if (lastNodeId) {
+      const lastRealNode = sortedNodes.find((n) => n.id === lastNodeId);
+      const isGateway = lastNodeId.startsWith("join-") || lastNodeId.startsWith("fork-");
       edges.push({
-        id: `edge-${lastNode.id}-end`,
-        source: lastNode.id,
+        id: `edge-${lastNodeId}-end`,
+        source: lastNodeId,
         target: "end",
         type: "quest",
         data: {
-          isCompleted:
-            sortedNodes.find((n) => n.id === lastNode.id)?.status ===
-            "completed",
+          isCompleted: isGateway || lastRealNode?.status === "completed",
           isCriticalPath: true,
           themeColors: {
             pathColor: theme.pathColor,
