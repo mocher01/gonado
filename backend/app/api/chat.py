@@ -143,6 +143,7 @@ async def get_current_conversation(
                 ConversationStatus.PLANNING
             ])
         ).order_by(Conversation.created_at.desc())
+        .limit(1)
     )
     conversation = result.scalar_one_or_none()
 
