@@ -213,11 +213,11 @@ function BPMNQuestMapInner({
       parallelGroupStarts.set(group[0].id, group);
     });
 
-    // Step 2: Layout configuration
-    const NODE_WIDTH = 320;
-    const NODE_HEIGHT = 160;
-    const HORIZONTAL_GAP = 180;
-    const VERTICAL_GAP = 120;
+    // Step 2: Layout configuration (sized for new UX-friendly nodes)
+    const NODE_WIDTH = 380;
+    const NODE_HEIGHT = 200;
+    const HORIZONTAL_GAP = 200;
+    const VERTICAL_GAP = 140;
 
     let xPosition = 100;  // Start position (no gateway before first node)
     const processedIds = new Set<string>();
