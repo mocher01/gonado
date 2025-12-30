@@ -41,30 +41,46 @@ export default function NewGoalPage() {
     }
   }, [user]);
 
-  // Poll for new messages when waiting
+  // Poll for new messages and check for completion
   useEffect(() => {
-    if (!conversation || conversation.status !== "waiting") return;
+    if (!conversation) return;
+    // Don't poll if already completed
+    if (conversation.status === "completed") {
+      if (conversation.goal_id) {
+        router.push(`/goals/${conversation.goal_id}`);
+      }
+      return;
+    }
 
     const pollInterval = setInterval(async () => {
       try {
+        // Always check for new messages
         const newMessages = await api.getChatMessages(conversation.id, lastSequence);
         if (newMessages.length > 0) {
+          const maxSeq = Math.max(...newMessages.map(m => m.sequence));
           setConversation(prev => {
             if (!prev) return prev;
             const existingIds = new Set(prev.messages.map(m => m.id));
             const uniqueNew = newMessages.filter(m => !existingIds.has(m.id));
+            if (uniqueNew.length === 0) return prev;
             return {
               ...prev,
-              status: "active",
+              status: prev.status === "waiting" ? "active" : prev.status,
               messages: [...prev.messages, ...uniqueNew]
             };
           });
-          setLastSequence(Math.max(...newMessages.map(m => m.sequence)));
+          setLastSequence(maxSeq);
         }
 
-        // Check if goal was created
+        // Check if goal was created (conversation completed)
         const current = await api.getCurrentConversation();
-        if (current?.status === "completed" && current.goal_id) {
+        if (!current) {
+          // No active conversation - check if our conversation was completed
+          const fullConv = await api.getConversation(conversation.id);
+          if (fullConv?.status === "completed" && fullConv.goal_id) {
+            router.push(`/goals/${fullConv.goal_id}`);
+          }
+        } else if (current.status === "completed" && current.goal_id) {
           router.push(`/goals/${current.goal_id}`);
         }
       } catch (err) {
@@ -73,7 +89,7 @@ export default function NewGoalPage() {
     }, 2000);
 
     return () => clearInterval(pollInterval);
-  }, [conversation?.id, conversation?.status, lastSequence, router]);
+  }, [conversation?.id, conversation?.status, conversation?.goal_id, lastSequence, router]);
 
   // Scroll to bottom on new messages
   useEffect(() => {

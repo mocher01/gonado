@@ -259,6 +259,27 @@ class ApiClient {
     return this.fetch(`/chat/${conversationId}/messages?since_sequence=${sinceSequence}`);
   }
 
+  async getConversation(conversationId: string): Promise<{
+    id: string;
+    status: string;
+    goal_id: string | null;
+    created_at: string;
+    updated_at: string;
+    messages: Array<{
+      id: string;
+      role: string;
+      content: string;
+      sequence: number;
+      created_at: string;
+    }>;
+  } | null> {
+    try {
+      return await this.fetch(`/chat/${conversationId}`);
+    } catch {
+      return null;
+    }
+  }
+
   async abandonConversation(conversationId: string): Promise<{ status: string }> {
     return this.fetch(`/chat/${conversationId}/abandon`, { method: "POST" });
   }
