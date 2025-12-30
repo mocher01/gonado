@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { QuestMap } from "@/components/goals/QuestMap";
+import { BPMNQuestMap } from "@/components/quest-map";
 import type { Goal, Node, User } from "@/types";
 
 export default function GoalDetailPage() {
@@ -331,7 +331,7 @@ export default function GoalDetailPage() {
             animate={{ opacity: 1 }}
             className="fixed inset-0 z-10"
           >
-            <QuestMap
+            <BPMNQuestMap
               nodes={nodes}
               worldTheme={goal.world_theme || "mountain"}
               goalTitle={goal.title}

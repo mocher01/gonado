@@ -1,6 +1,6 @@
 from app.models.user import User
 from app.models.goal import Goal, GoalVisibility, GoalStatus
-from app.models.node import Node, NodeStatus
+from app.models.node import Node, NodeStatus, NodeType, DependencyType, NodeDependency
 from app.models.update import Update, UpdateType
 from app.models.interaction import Interaction, InteractionType, TargetType
 from app.models.gamification import Badge, UserBadge, XPTransaction
@@ -12,7 +12,7 @@ from app.models.conversation import Conversation, ConversationMessage, Conversat
 __all__ = [
     "User",
     "Goal", "GoalVisibility", "GoalStatus",
-    "Node", "NodeStatus",
+    "Node", "NodeStatus", "NodeType", "DependencyType", "NodeDependency",
     "Update", "UpdateType",
     "Interaction", "InteractionType", "TargetType",
     "Badge", "UserBadge", "XPTransaction",

@@ -481,13 +481,24 @@ async def finalize_conversation(
         await db.flush()
 
         # Create nodes
+        from app.models.node import NodeType
         for i, node_data in enumerate(plan.nodes):
+            # Parse node_type
+            node_type_str = node_data.get("node_type", "task")
+            try:
+                node_type = NodeType(node_type_str)
+            except ValueError:
+                node_type = NodeType.TASK
+
             node = Node(
                 goal_id=goal.id,
                 title=node_data.get("title", f"Step {i+1}"),
                 description=node_data.get("description", ""),
                 order=node_data.get("order", i + 1),
-                status="active" if i == 0 else "locked"
+                status="active" if i == 0 else "locked",
+                node_type=node_type,
+                can_parallel=node_data.get("can_parallel", False),
+                estimated_duration=node_data.get("estimated_duration")
             )
             db.add(node)
 

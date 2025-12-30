@@ -85,14 +85,26 @@ Generate a JSON object with:
 - title: A motivating, specific title for the goal
 - description: 2-3 sentence description
 - category: One of: career, health, finance, education, personal, creative
-- world_theme: One of: fantasy, space, ocean, mountain, forest, urban
+- world_theme: One of: fantasy, space, ocean, mountain, forest, city
 - target_date: ISO date string or null
-- nodes: Array of as many milestones as needed. Each node has:
+- nodes: Array of milestones. Each node has:
   - title: Short milestone name
   - description: Detailed guidance (3-5 sentences). For HARD steps, explain WHY difficult and HOW to tackle.
-  - order: Sequential number
+  - order: Sequential number starting from 1
+  - node_type: One of: "task" (default), "milestone" (for major checkpoints)
+  - can_parallel: Boolean - true if this step can be done SIMULTANEOUSLY with adjacent steps (mark consecutive parallelizable tasks as can_parallel: true)
+  - estimated_duration: Estimated hours to complete (integer)
 
-IMPORTANT: Create specific, actionable steps. Focus on hard parts where people fail.
+PARALLEL TASK RULES:
+- Mark consecutive nodes as can_parallel: true when they can be worked on at the same time
+- Example: "Get certifications", "Build portfolio", "Network with recruiters" can all happen in parallel
+- At least 2 consecutive can_parallel: true nodes are needed to create a parallel branch
+- Don't mark steps that must happen sequentially as parallel
+
+IMPORTANT:
+- Create specific, actionable steps. Focus on hard parts where people fail.
+- Identify opportunities for parallel work to optimize the journey.
+- Add milestone nodes at key achievement points.
 
 Output ONLY valid JSON, no other text."""
 

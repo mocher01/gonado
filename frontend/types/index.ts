@@ -25,6 +25,17 @@ export interface Goal {
   updated_at: string;
 }
 
+export type NodeType = "task" | "parallel_start" | "parallel_end" | "milestone";
+export type DependencyType = "finish_to_start" | "start_to_start" | "finish_to_finish";
+
+export interface NodeDependency {
+  id: string;
+  node_id: string;
+  depends_on_id: string;
+  dependency_type: DependencyType;
+  created_at: string;
+}
+
 export interface Node {
   id: string;
   goal_id: string;
@@ -34,10 +45,19 @@ export interface Node {
   status: "locked" | "active" | "completed" | "failed";
   position_x: number;
   position_y: number;
-  metadata: Record<string, unknown>;
+  extra_data: Record<string, unknown>;
   due_date: string | null;
   completed_at: string | null;
   created_at: string;
+  // BPMN fields
+  node_type: NodeType;
+  can_parallel: boolean;
+  estimated_duration: number | null;
+}
+
+export interface NodeWithDependencies extends Node {
+  depends_on: NodeDependency[];
+  dependents: NodeDependency[];
 }
 
 export interface Update {

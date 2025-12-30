@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* React Flow styles */
+@import '@xyflow/react/dist/style.css';
+
 :root {
   --foreground-rgb: 255, 255, 255;
   --background-start-rgb: 15, 23, 42;

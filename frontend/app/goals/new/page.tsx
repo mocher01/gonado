@@ -7,9 +7,11 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 
+type MessageRole = "user" | "assistant" | "system";
+
 interface Message {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: MessageRole;
   content: string;
   sequence: number;
   created_at: string;
@@ -61,7 +63,9 @@ export default function NewGoalPage() {
           setConversation(prev => {
             if (!prev) return prev;
             const existingIds = new Set(prev.messages.map(m => m.id));
-            const uniqueNew = newMessages.filter(m => !existingIds.has(m.id));
+            const uniqueNew = newMessages
+              .filter(m => !existingIds.has(m.id))
+              .map(m => ({ ...m, role: m.role as MessageRole }));
             if (uniqueNew.length === 0) return prev;
             return {
               ...prev,
@@ -99,9 +103,13 @@ export default function NewGoalPage() {
   const startOrResumeConversation = async () => {
     try {
       const conv = await api.startConversation();
-      setConversation(conv as Conversation);
-      if (conv.messages.length > 0) {
-        setLastSequence(Math.max(...conv.messages.map((m: Message) => m.sequence)));
+      const typedMessages: Message[] = conv.messages.map(m => ({
+        ...m,
+        role: m.role as MessageRole
+      }));
+      setConversation({ ...conv, messages: typedMessages });
+      if (typedMessages.length > 0) {
+        setLastSequence(Math.max(...typedMessages.map(m => m.sequence)));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start conversation");

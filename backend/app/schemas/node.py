@@ -1,8 +1,8 @@
 from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
-from typing import Optional, Dict, Any
-from app.models.node import NodeStatus
+from typing import Optional, Dict, Any, List
+from app.models.node import NodeStatus, NodeType, DependencyType
 
 
 class NodeCreate(BaseModel):
@@ -13,6 +13,10 @@ class NodeCreate(BaseModel):
     position_y: float = 0.0
     extra_data: Dict[str, Any] = {}
     due_date: Optional[datetime] = None
+    # BPMN fields
+    node_type: NodeType = NodeType.TASK
+    can_parallel: bool = False
+    estimated_duration: Optional[int] = None
 
 
 class NodeUpdate(BaseModel):
@@ -23,10 +27,31 @@ class NodeUpdate(BaseModel):
     position_y: Optional[float] = None
     extra_data: Optional[Dict[str, Any]] = None
     due_date: Optional[datetime] = None
+    # BPMN fields
+    node_type: Optional[NodeType] = None
+    can_parallel: Optional[bool] = None
+    estimated_duration: Optional[int] = None
 
 
 class NodeStatusUpdate(BaseModel):
     status: NodeStatus
+
+
+# Dependency schemas
+class DependencyCreate(BaseModel):
+    depends_on_id: UUID
+    dependency_type: DependencyType = DependencyType.FINISH_TO_START
+
+
+class DependencyResponse(BaseModel):
+    id: UUID
+    node_id: UUID
+    depends_on_id: UUID
+    dependency_type: DependencyType
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class NodeResponse(BaseModel):
@@ -42,6 +67,16 @@ class NodeResponse(BaseModel):
     due_date: Optional[datetime]
     completed_at: Optional[datetime]
     created_at: datetime
+    # BPMN fields
+    node_type: NodeType
+    can_parallel: bool
+    estimated_duration: Optional[int]
 
     class Config:
         from_attributes = True
+
+
+class NodeWithDependenciesResponse(NodeResponse):
+    """Node response including dependency information."""
+    depends_on: List[DependencyResponse] = []
+    dependents: List[DependencyResponse] = []
