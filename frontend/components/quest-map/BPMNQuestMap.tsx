@@ -1,5 +1,31 @@
 "use client";
 
+/**
+ * BPMN-Inspired Quest Map Component
+ * ==================================
+ *
+ * LAYOUT RULES:
+ * 1. Horizontal flow: left to right
+ * 2. First task node IS the start - NO gateway before it
+ * 3. Last node connects to "Goal Complete!" milestone
+ * 4. Gateways (fork/join) ONLY when there are parallel tasks
+ *
+ * LAYOUT ALGORITHM:
+ * - Track lastNodeId to properly connect sequential nodes
+ * - Parallel groups: fork gateway → parallel nodes (vertical stack) → join gateway
+ * - Sequential nodes: simple left-to-right connection
+ *
+ * NODE TYPES:
+ * - task: Regular step (TaskNode component)
+ * - milestone: Major checkpoint (MilestoneNode component)
+ * - gateway: Fork/Join for parallel paths (GatewayNode component) - auto-generated
+ *
+ * EDGE CONNECTIONS:
+ * - Each node connects to the next via lastNodeId tracking
+ * - Gateways connect to all parallel nodes (fork) or receive from all (join)
+ * - isCompleted determines edge glow/color
+ */
+
 import { useMemo, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Node } from "@/types";
@@ -153,14 +179,17 @@ function BPMNQuestMapInner({
     [inputNodes]
   );
 
-  // Build flow data
+  // Build flow data for React Flow
+  // IMPORTANT: No start gateway - first node IS the start
+  // lastNodeId tracks the previous node for edge connections
   const { flowNodes, flowEdges } = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nodes: any[] = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const edges: any[] = [];
 
-    // Detect parallel groups (consecutive nodes with can_parallel=true)
+    // Step 1: Detect parallel groups (2+ consecutive nodes with can_parallel=true)
+    // Only these groups get fork/join gateways
     const parallelGroups: Node[][] = [];
     let currentGroup: Node[] = [];
 
@@ -184,22 +213,26 @@ function BPMNQuestMapInner({
       parallelGroupStarts.set(group[0].id, group);
     });
 
+    // Step 2: Layout configuration
     const NODE_WIDTH = 320;
     const NODE_HEIGHT = 160;
     const HORIZONTAL_GAP = 180;
     const VERTICAL_GAP = 120;
 
-    let xPosition = 100;
+    let xPosition = 100;  // Start position (no gateway before first node)
     const processedIds = new Set<string>();
-    let lastNodeId: string | null = null;
+    let lastNodeId: string | null = null;  // Track last node for edge connections
 
+    // Step 3: Build nodes and edges
+    // - Sequential nodes: connect directly via lastNodeId
+    // - Parallel groups: fork → parallel nodes (stacked vertically) → join
     sortedNodes.forEach((node, index) => {
       if (processedIds.has(node.id)) return;
 
       const parallelGroup = parallelGroupStarts.get(node.id);
 
       if (parallelGroup && parallelGroup.length > 1) {
-        // Add fork gateway
+        // PARALLEL PATH: Add fork gateway → parallel nodes → join gateway
         const forkId = `fork-${node.id}`;
         nodes.push({
           id: forkId,
@@ -324,7 +357,8 @@ function BPMNQuestMapInner({
         lastNodeId = joinId;
         xPosition += 80;
       } else {
-        // Regular sequential node
+        // SEQUENTIAL PATH: Simple node → node connection
+        // Most common case - no gateways needed
         const yPos = 250;
 
         nodes.push({

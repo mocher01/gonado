@@ -86,6 +86,26 @@ def process_conversations():
 
 
 def handle_finalization(conv_id, history):
+    """
+    Generate a quest map from the conversation.
+
+    QUEST MAP GENERATION RULES:
+    ===========================
+    1. Nodes are displayed in a horizontal flow (left to right)
+    2. First node is the START - no gateway needed before it
+    3. Last node connects to "Goal Complete!" milestone
+    4. Gateways (fork/join) are ONLY added when there are parallel tasks
+    5. Most goals should be simple sequential flows (node → node → node)
+
+    PARALLEL TASKS:
+    - Only use can_parallel: true when tasks can TRULY be done simultaneously
+    - Need at least 2 consecutive can_parallel nodes to create a parallel branch
+    - Don't over-use parallelism - keep it simple for most goals
+
+    NODE TYPES:
+    - "task": Regular step (default, most common)
+    - "milestone": Major checkpoint (use sparingly, 1-2 per goal max)
+    """
     print(f"🎯 User confirmed - creating quest map...")
 
     plan_prompt = f"""Based on this conversation, create a detailed goal plan in JSON format.
@@ -96,22 +116,23 @@ CONVERSATION:
 Generate a JSON object with:
 - title: A motivating, specific title for the goal
 - description: 2-3 sentence description
-- category: One of: career, health, finance, education, personal, creative
-- world_theme: One of: fantasy, space, ocean, mountain, forest, city
+- category: One of: career, health, finance, education, personal, creative, hobby, home, cooking
+- world_theme: One of: fantasy, space, ocean, mountain, forest, city, desert
 - target_date: ISO date string or null
-- nodes: Array of milestones. Each node has:
-  - title: Short milestone name
+- nodes: Array of steps (5-10 nodes typically). Each node has:
+  - title: Short step name (max 50 chars)
   - description: Detailed guidance (3-5 sentences). For HARD steps, explain WHY difficult and HOW to tackle.
   - order: Sequential number starting from 1
-  - node_type: One of: "task" (default), "milestone" (for major checkpoints)
-  - can_parallel: Boolean - true if this step can be done SIMULTANEOUSLY with adjacent steps (mark consecutive parallelizable tasks as can_parallel: true)
+  - node_type: "task" (default) or "milestone" (use sparingly for major checkpoints)
+  - can_parallel: Boolean - true ONLY if this step can be done SIMULTANEOUSLY with adjacent steps
   - estimated_duration: Estimated hours to complete (integer)
 
-PARALLEL TASK RULES:
-- Mark consecutive nodes as can_parallel: true when they can be worked on at the same time
-- Example: "Get certifications", "Build portfolio", "Network with recruiters" can all happen in parallel
-- At least 2 consecutive can_parallel: true nodes are needed to create a parallel branch
-- Don't mark steps that must happen sequentially as parallel
+IMPORTANT RULES:
+1. Keep it SIMPLE - most goals should be sequential (can_parallel: false for all nodes)
+2. Only use can_parallel: true when tasks genuinely can happen at the same time
+3. Need at least 2 CONSECUTIVE can_parallel: true nodes to create a parallel branch
+4. Use "milestone" node_type sparingly (1-2 per goal maximum)
+5. First node is always the starting point - no special handling needed
 
 IMPORTANT:
 - Create specific, actionable steps. Focus on hard parts where people fail.
