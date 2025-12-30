@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api import auth, users, goals, nodes, updates, interactions, gamification, notifications, discovery, media
+from app.api import auth, users, goals, nodes, updates, interactions, gamification, notifications, discovery, media, generation_queue
 
 api_router = APIRouter()
 
@@ -13,3 +13,4 @@ api_router.include_router(gamification.router, prefix="/gamification", tags=["ga
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(discovery.router, prefix="/discovery", tags=["discovery"])
 api_router.include_router(media.router, prefix="/media", tags=["media"])
+api_router.include_router(generation_queue.router, prefix="/queue", tags=["queue"])

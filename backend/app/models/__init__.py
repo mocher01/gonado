@@ -6,6 +6,7 @@ from app.models.interaction import Interaction, InteractionType, TargetType
 from app.models.gamification import Badge, UserBadge, XPTransaction
 from app.models.notification import Notification
 from app.models.follow import Follow, FollowType
+from app.models.generation_queue import GenerationQueue, QueueStatus
 
 __all__ = [
     "User",
@@ -16,4 +17,5 @@ __all__ = [
     "Badge", "UserBadge", "XPTransaction",
     "Notification",
     "Follow", "FollowType",
+    "GenerationQueue", "QueueStatus",
 ]

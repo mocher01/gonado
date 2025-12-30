@@ -5,6 +5,10 @@ from app.schemas.update import UpdateCreate, UpdateResponse
 from app.schemas.interaction import CommentCreate, ReactionCreate, InteractionResponse
 from app.schemas.gamification import BadgeResponse, UserBadgeResponse, LeaderboardEntry, XPTransactionResponse
 from app.schemas.notification import NotificationResponse, NotificationMarkRead
+from app.schemas.generation_queue import (
+    QueueSubmitRequest, QueueSubmitResponse, QueueStatusResponse,
+    GeneratedNode, GeneratedPlan, QueueItemForProcessing, ProcessQueueRequest
+)
 
 __all__ = [
     "UserCreate", "UserUpdate", "UserResponse", "UserPublicResponse",
@@ -14,4 +18,6 @@ __all__ = [
     "CommentCreate", "ReactionCreate", "InteractionResponse",
     "BadgeResponse", "UserBadgeResponse", "LeaderboardEntry", "XPTransactionResponse",
     "NotificationResponse", "NotificationMarkRead",
+    "QueueSubmitRequest", "QueueSubmitResponse", "QueueStatusResponse",
+    "GeneratedNode", "GeneratedPlan", "QueueItemForProcessing", "ProcessQueueRequest",
 ]

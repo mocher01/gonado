@@ -173,6 +173,33 @@ class ApiClient {
   async getGoalsNeedingHelp(): Promise<Goal[]> {
     return this.fetch<Goal[]>("/discovery/needs-help");
   }
+
+  // Queue - AI Goal Generation
+  async submitGoalToQueue(goalText: string): Promise<{
+    queue_id: string;
+    status: string;
+    message: string;
+    position: number;
+  }> {
+    return this.fetch("/queue/submit", {
+      method: "POST",
+      body: JSON.stringify({ goal_text: goalText }),
+    });
+  }
+
+  async getQueueStatus(queueId: string): Promise<{
+    queue_id: string;
+    status: "pending" | "processing" | "completed" | "failed";
+    goal_text: string;
+    goal_id: string | null;
+    error_message: string | null;
+    created_at: string;
+    processing_started_at: string | null;
+    completed_at: string | null;
+    estimated_wait_seconds: number | null;
+  }> {
+    return this.fetch(`/queue/status/${queueId}`);
+  }
 }
 
 export const api = new ApiClient();
