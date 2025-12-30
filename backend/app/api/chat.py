@@ -419,6 +419,8 @@ async def respond_to_conversation(
     return {"status": "sent", "sequence": next_seq}
 
 
+MIN_USER_MESSAGES = 4  # Minimum user messages before finalization allowed
+
 @router.post("/finalize/{conversation_id}")
 async def finalize_conversation(
     conversation_id: UUID,
@@ -433,6 +435,22 @@ async def finalize_conversation(
 
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Check minimum user messages before allowing finalization
+    msg_result = await db.execute(
+        select(func.count(ConversationMessage.id))
+        .where(
+            ConversationMessage.conversation_id == conversation_id,
+            ConversationMessage.role == MessageRole.USER
+        )
+    )
+    user_msg_count = msg_result.scalar() or 0
+
+    if user_msg_count < MIN_USER_MESSAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Conversation needs at least {MIN_USER_MESSAGES} user messages before finalization (currently {user_msg_count})"
+        )
 
     # Update status to planning
     conversation.status = ConversationStatus.PLANNING
