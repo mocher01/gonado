@@ -73,7 +73,8 @@ async def start_conversation(
         select(Conversation).where(
             Conversation.user_id == current_user.id,
             Conversation.status.in_([ConversationStatus.ACTIVE, ConversationStatus.WAITING])
-        )
+        ).order_by(Conversation.created_at.desc())
+        .limit(1)
     )
     existing = result.scalar_one_or_none()
 
