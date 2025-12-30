@@ -71,7 +71,17 @@ curl -s "http://localhost:7902/api/chat/pending/conversations"
 4. Watcher calls `claude -p` with conversation context
 5. Watcher POSTs response to `/api/chat/respond/{id}`
 6. Frontend polls and displays new message
-7. When ready, watcher POSTs to `/api/chat/finalize/{id}` with plan JSON
+7. **After 4+ exchanges**: Watcher summarizes and asks "Should I create your quest map?"
+8. **User confirms**: Watcher generates plan and POSTs to `/api/chat/finalize/{id}`
+
+## Finalization Rules
+
+The watcher will ONLY finalize when:
+- User has sent at least 4 messages (MIN_EXCHANGES=4)
+- Last assistant message indicated readiness ("have everything I need", "ready to create", etc.)
+- User confirmed with "yes", "sure", "go ahead", "ok", etc.
+
+This prevents premature finalization and ensures quality, personalized plans.
 
 ## Plan JSON Format (for finalize)
 ```json
