@@ -202,8 +202,8 @@ export default function NewGoalPage() {
                 >
                   {message.role === "assistant" && (
                     <div className="flex items-center gap-2 mb-1 text-purple-400 text-sm">
-                      <span>🤖</span>
-                      <span>Claude</span>
+                      <span>✨</span>
+                      <span>Quest Guide</span>
                     </div>
                   )}
                   <p className="whitespace-pre-wrap">{message.content}</p>
@@ -221,8 +221,8 @@ export default function NewGoalPage() {
             >
               <div className="bg-white/10 rounded-2xl rounded-bl-md px-4 py-3">
                 <div className="flex items-center gap-2 text-purple-400">
-                  <span>🤖</span>
-                  <span>Claude is thinking</span>
+                  <span>✨</span>
+                  <span>Crafting your path</span>
                   <motion.span
                     animate={{ opacity: [0.3, 1, 0.3] }}
                     transition={{ duration: 1.5, repeat: Infinity }}
@@ -274,7 +274,7 @@ export default function NewGoalPage() {
             </motion.button>
           </form>
           <p className="text-center text-gray-500 text-sm mt-3">
-            Chat with Claude to create your personalized quest map
+            Chat with your Quest Guide to create your personalized adventure
           </p>
         </div>
       </div>

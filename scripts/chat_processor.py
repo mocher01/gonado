@@ -128,7 +128,7 @@ def display_conversation(conv: dict):
             print(f"{Colors.BLUE}👤 USER:{Colors.ENDC}")
             print(f"   {content}")
         elif role == 'assistant':
-            print(f"{Colors.GREEN}🤖 CLAUDE:{Colors.ENDC}")
+            print(f"{Colors.GREEN}✨ QUEST GUIDE:{Colors.ENDC}")
             print(f"   {content}")
         else:
             print(f"{Colors.DIM}📌 SYSTEM: {content}{Colors.ENDC}")
