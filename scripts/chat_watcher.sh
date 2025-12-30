@@ -3,11 +3,9 @@
 
 API_URL="http://localhost:7902/api"
 POLL_INTERVAL=5
-MIN_EXCHANGES=4  # Minimum user messages before considering finalization
 
 echo "✨ Gonado Quest Guide Watcher started"
 echo "   Polling every ${POLL_INTERVAL}s..."
-echo "   Min exchanges before finalize: ${MIN_EXCHANGES}"
 echo "   Press Ctrl+C to stop"
 echo ""
 
@@ -18,8 +16,9 @@ while true; do
     if [ "$COUNT" != "0" ]; then
         echo "📬 Found $COUNT pending conversation(s)"
 
-        echo "$PENDING" | python3 << 'PYTHON_SCRIPT'
-import sys
+        # Pass JSON via environment variable
+        PENDING_JSON="$PENDING" python3 -c '
+import os
 import json
 import subprocess
 import requests
@@ -27,33 +26,34 @@ import requests
 API_URL = "http://localhost:7902/api"
 MIN_EXCHANGES = 4
 
-conversations = json.load(sys.stdin)
+pending_json = os.environ.get("PENDING_JSON", "[]")
+conversations = json.loads(pending_json)
 
 for conv in conversations:
-    conv_id = conv['conversation_id']
-    user_name = conv['user_name']
-    messages = conv['messages']
+    conv_id = conv["conversation_id"]
+    user_name = conv["user_name"]
+    messages = conv["messages"]
 
-    # Count user messages (excluding the initial system messages)
-    user_messages = [m for m in messages if m['role'] == 'user']
+    # Count user messages
+    user_messages = [m for m in messages if m["role"] == "user"]
     user_msg_count = len(user_messages)
 
-    print(f'💬 Conversation from {user_name} ({user_msg_count} user messages)')
+    print(f"💬 Conversation from {user_name} ({user_msg_count} user messages)")
 
     # Build conversation history
     history = ""
     for msg in messages:
-        role = 'User' if msg['role'] == 'user' else 'Quest Guide'
-        history += f"{role}: {msg['content']}\n\n"
+        role = "User" if msg["role"] == "user" else "Quest Guide"
+        history += f"{role}: {msg[\"content\"]}\n\n"
 
-    # Determine phase: gathering info or ready to finalize
+    # Determine phase
     ready_to_finalize = user_msg_count >= MIN_EXCHANGES
 
     # Check if last assistant message indicated readiness
     last_assistant_msg = ""
     for m in reversed(messages):
-        if m['role'] == 'assistant':
-            last_assistant_msg = m['content'].lower()
+        if m["role"] == "assistant":
+            last_assistant_msg = m["content"].lower()
             break
 
     explicitly_ready = any(phrase in last_assistant_msg for phrase in [
@@ -61,130 +61,116 @@ for conv in conversations:
         "let me create",
         "creating your quest",
         "have everything i need",
-        "got all the information"
+        "got all the information",
+        "should i go ahead"
     ])
 
-    # Check if user confirmed readiness
-    last_user_msg = user_messages[-1]['content'].lower() if user_messages else ""
+    # Check if user confirmed
+    last_user_msg = user_messages[-1]["content"].lower() if user_messages else ""
     user_confirmed = any(phrase in last_user_msg for phrase in [
-        "yes", "sure", "go ahead", "create", "let's do it", "sounds good", "perfect", "ok", "okay"
+        "yes", "sure", "go ahead", "create", "lets do it", "sounds good", "perfect", "ok", "okay", "yep", "yeah"
     ])
 
     should_finalize = explicitly_ready and user_confirmed
 
     if should_finalize:
-        print(f'🎯 User confirmed - creating quest map...')
+        print(f"🎯 User confirmed - creating quest map...")
 
-        # Generate the plan
-        plan_prompt = f'''Based on this conversation, create a detailed goal plan in JSON format.
+        plan_prompt = f"""Based on this conversation, create a detailed goal plan in JSON format.
 
 CONVERSATION:
 {history}
 
 Generate a JSON object with:
 - title: A motivating, specific title for the goal
-- description: 2-3 sentence description of what they want to achieve
+- description: 2-3 sentence description
 - category: One of: career, health, finance, education, personal, creative
-- world_theme: One of: fantasy, space, ocean, mountain, forest, urban (pick based on their personality)
-- target_date: ISO date string based on their timeline (or null if not specified)
-- nodes: Array of as many milestones as the goal ACTUALLY requires. Each node:
+- world_theme: One of: fantasy, space, ocean, mountain, forest, urban
+- target_date: ISO date string or null
+- nodes: Array of as many milestones as needed. Each node has:
   - title: Short milestone name
-  - description: Detailed guidance (3-5 sentences). For HARD steps, explain WHY it's difficult and HOW to tackle it. Include specific tips, potential pitfalls to avoid, and resources if relevant.
+  - description: Detailed guidance (3-5 sentences). For HARD steps, explain WHY difficult and HOW to tackle.
   - order: Sequential number
 
-IMPORTANT:
-- Create as many steps as genuinely needed (could be 5 for simple goals, 20+ for complex ones like building a house)
-- Focus on the HARD parts - where people typically fail or get stuck
-- Be a real guide: explain challenges, give specific advice, warn about common mistakes
-- Reference the user's specific situation, budget, timeline, experience level
+IMPORTANT: Create specific, actionable steps. Focus on hard parts where people fail.
 
-Output ONLY valid JSON, no other text.'''
+Output ONLY valid JSON, no other text."""
 
         try:
             result = subprocess.run(
-                ['claude', '-p', plan_prompt],
+                ["claude", "-p", plan_prompt],
                 capture_output=True,
                 text=True,
                 timeout=120
             )
             plan_json = result.stdout.strip()
 
-            # Clean up potential markdown code blocks
-            if plan_json.startswith('```'):
-                plan_json = plan_json.split('```')[1]
-                if plan_json.startswith('json'):
-                    plan_json = plan_json[4:]
-            plan_json = plan_json.strip()
+            # Clean markdown code blocks
+            if plan_json.startswith("```"):
+                lines = plan_json.split("\n")
+                plan_json = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+            if plan_json.startswith("json"):
+                plan_json = plan_json[4:].strip()
 
             plan = json.loads(plan_json)
 
-            # Finalize the conversation
             r = requests.post(
-                f'{API_URL}/chat/finalize/{conv_id}',
+                f"{API_URL}/chat/finalize/{conv_id}",
                 json=plan
             )
 
             if r.status_code == 200:
                 result_data = r.json()
-                print(f'✅ Quest created! Goal ID: {result_data.get("goal_id")}')
+                print(f"✅ Quest created! Goal ID: {result_data.get(\"goal_id\")}")
             else:
-                print(f'❌ Failed to finalize: {r.text}')
-                # Send error message to user
+                print(f"❌ Failed to finalize: {r.text}")
                 requests.post(
-                    f'{API_URL}/chat/respond/{conv_id}',
-                    json={'content': 'I encountered an issue creating your quest map. Let me try again - could you confirm your goal details?'}
+                    f"{API_URL}/chat/respond/{conv_id}",
+                    json={"content": "I encountered an issue creating your quest map. Let me ask a few more questions to make sure I have everything right."}
                 )
 
         except json.JSONDecodeError as e:
-            print(f'❌ Invalid JSON from plan generation: {e}')
+            print(f"❌ Invalid JSON: {e}")
             requests.post(
-                f'{API_URL}/chat/respond/{conv_id}',
-                json={'content': 'I had trouble structuring your quest. Let me ask a few more questions to make sure I understand your goal correctly.'}
+                f"{API_URL}/chat/respond/{conv_id}",
+                json={"content": "I had trouble structuring your quest. Could you tell me more about your specific goals and timeline?"}
             )
         except Exception as e:
-            print(f'❌ Error: {e}')
+            print(f"❌ Error: {e}")
 
     else:
-        # Continue conversation - ask more questions or propose finalization
+        # Continue conversation
         if ready_to_finalize and not explicitly_ready:
-            # We have enough info, ask if ready to create
-            prompt = f'''You are a Quest Guide helping someone create a personalized goal quest map.
+            prompt = f"""You are a Quest Guide helping create a personalized goal quest map.
 
-CONVERSATION SO FAR:
+CONVERSATION:
 {history}
 
-You now have enough information about their goal. Summarize what you understand about:
-- Their specific goal
-- Timeline
-- Their experience/starting point
-- Key challenges or considerations
-
+You have enough information. Summarize what you understand about their goal, timeline, and situation.
 Then ask: "I think I have everything I need to create your personalized quest map! Should I go ahead and create it?"
 
-Keep it concise (2-3 short paragraphs). Be enthusiastic but not over the top.
-Do NOT include any prefix like "Quest Guide:" - just the message content.'''
+Keep it concise (2-3 paragraphs). Do NOT include any prefix like "Quest Guide:" - just the message."""
 
         else:
-            # Need more information
-            prompt = f'''You are a Quest Guide helping someone create a personalized goal quest map.
+            prompt = f"""You are a Quest Guide helping create a personalized goal quest map.
 
-CONVERSATION SO FAR:
+CONVERSATION:
 {history}
 
-Continue the conversation naturally. Ask ONE focused follow-up question to better understand:
-- Specific details about their goal (what exactly do they want to achieve?)
+Continue naturally. Ask ONE focused follow-up question about:
+- Specific details about their goal
 - Timeline (by when?)
-- Their current situation/experience level
+- Current situation/experience
 - Resources or constraints
-- What success looks like to them
+- What success looks like
 
-Be warm, encouraging, and specific. Reference what they've already told you.
-Keep response to 2-3 short paragraphs max.
-Do NOT include any prefix like "Quest Guide:" - just the message content.'''
+Be warm and specific. Reference what they told you.
+Keep to 2-3 short paragraphs.
+Do NOT include any prefix - just the message."""
 
         try:
             result = subprocess.run(
-                ['claude', '-p', prompt],
+                ["claude", "-p", prompt],
                 capture_output=True,
                 text=True,
                 timeout=60
@@ -193,23 +179,20 @@ Do NOT include any prefix like "Quest Guide:" - just the message content.'''
 
             if response:
                 r = requests.post(
-                    f'{API_URL}/chat/respond/{conv_id}',
-                    json={'content': response}
+                    f"{API_URL}/chat/respond/{conv_id}",
+                    json={"content": response}
                 )
                 if r.status_code == 200:
-                    print(f'✅ Response sent')
+                    print(f"✅ Response sent")
                 else:
-                    print(f'❌ Failed to send: {r.text}')
+                    print(f"❌ Failed: {r.text}")
             else:
-                print(f'⚠️ Empty response')
-                if result.stderr:
-                    print(f'   Error: {result.stderr[:200]}')
+                print(f"⚠️ Empty response")
         except subprocess.TimeoutExpired:
-            print('⚠️ Timeout')
+            print("⚠️ Timeout")
         except Exception as e:
-            print(f'❌ Error: {e}')
-
-PYTHON_SCRIPT
+            print(f"❌ Error: {e}")
+'
     fi
 
     sleep $POLL_INTERVAL
