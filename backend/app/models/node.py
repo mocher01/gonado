@@ -43,7 +43,8 @@ class Node(Base):
 
     # BPMN-style node type
     node_type: Mapped[NodeType] = mapped_column(
-        SQLEnum(NodeType), default=NodeType.TASK
+        SQLEnum(NodeType, values_callable=lambda x: [e.value for e in x]),
+        default=NodeType.TASK
     )
 
     # Whether this node can be done in parallel with siblings
@@ -104,7 +105,7 @@ class NodeDependency(Base):
 
     # Type of dependency
     dependency_type: Mapped[DependencyType] = mapped_column(
-        SQLEnum(DependencyType),
+        SQLEnum(DependencyType, values_callable=lambda x: [e.value for e in x]),
         default=DependencyType.FINISH_TO_START
     )
 
