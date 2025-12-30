@@ -200,6 +200,68 @@ class ApiClient {
   }> {
     return this.fetch(`/queue/status/${queueId}`);
   }
+
+  // Chat - Conversational Goal Creation
+  async startConversation(): Promise<{
+    id: string;
+    status: string;
+    goal_id: string | null;
+    created_at: string;
+    updated_at: string;
+    messages: Array<{
+      id: string;
+      role: string;
+      content: string;
+      sequence: number;
+      created_at: string;
+    }>;
+  }> {
+    return this.fetch("/chat/start", { method: "POST" });
+  }
+
+  async getCurrentConversation(): Promise<{
+    id: string;
+    status: string;
+    goal_id: string | null;
+    created_at: string;
+    updated_at: string;
+    messages: Array<{
+      id: string;
+      role: string;
+      content: string;
+      sequence: number;
+      created_at: string;
+    }>;
+  } | null> {
+    return this.fetch("/chat/current");
+  }
+
+  async sendChatMessage(conversationId: string, content: string): Promise<{
+    id: string;
+    role: string;
+    content: string;
+    sequence: number;
+    created_at: string;
+  }> {
+    return this.fetch(`/chat/${conversationId}/send`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async getChatMessages(conversationId: string, sinceSequence: number = 0): Promise<Array<{
+    id: string;
+    role: string;
+    content: string;
+    sequence: number;
+    created_at: string;
+  }>> {
+    return this.fetch(`/chat/${conversationId}/messages?since_sequence=${sinceSequence}`);
+  }
+
+  async abandonConversation(conversationId: string): Promise<{ status: string }> {
+    return this.fetch(`/chat/${conversationId}/abandon`, { method: "POST" });
+  }
 }
 
 export const api = new ApiClient();
