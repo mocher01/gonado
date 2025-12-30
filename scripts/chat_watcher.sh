@@ -87,12 +87,16 @@ Generate a JSON object with:
 - category: One of: career, health, finance, education, personal, creative
 - world_theme: One of: fantasy, space, ocean, mountain, forest, urban (pick based on their personality)
 - target_date: ISO date string based on their timeline (or null if not specified)
-- nodes: Array of 5-8 specific, actionable milestones with:
+- nodes: Array of as many milestones as the goal ACTUALLY requires. Each node:
   - title: Short milestone name
-  - description: Specific actions to take (2-3 sentences)
+  - description: Detailed guidance (3-5 sentences). For HARD steps, explain WHY it's difficult and HOW to tackle it. Include specific tips, potential pitfalls to avoid, and resources if relevant.
   - order: Sequential number
 
-Make the nodes SPECIFIC to their situation, not generic. Reference details they mentioned.
+IMPORTANT:
+- Create as many steps as genuinely needed (could be 5 for simple goals, 20+ for complex ones like building a house)
+- Focus on the HARD parts - where people typically fail or get stuck
+- Be a real guide: explain challenges, give specific advice, warn about common mistakes
+- Reference the user's specific situation, budget, timeline, experience level
 
 Output ONLY valid JSON, no other text.'''
 
