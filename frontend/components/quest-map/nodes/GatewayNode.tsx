@@ -48,13 +48,6 @@ function GatewayNodeComponent({ data }: GatewayNodeProps) {
           </span>
         </div>
 
-        {/* Label */}
-        <div
-          className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-medium whitespace-nowrap"
-          style={{ color: themeColors.pathColor }}
-        >
-          {isFork ? "PARALLEL" : "SYNC"}
-        </div>
 
         {/* Animated ring */}
         <motion.div

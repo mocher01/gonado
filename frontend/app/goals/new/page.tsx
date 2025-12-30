@@ -77,15 +77,13 @@ export default function NewGoalPage() {
         }
 
         // Check if goal was created (conversation completed)
-        const current = await api.getCurrentConversation();
-        if (!current) {
-          // No active conversation - check if our conversation was completed
-          const fullConv = await api.getConversation(conversation.id);
-          if (fullConv?.status === "completed" && fullConv.goal_id) {
-            router.push(`/goals/${fullConv.goal_id}`);
-          }
-        } else if (current.status === "completed" && current.goal_id) {
-          router.push(`/goals/${current.goal_id}`);
+        // Always check our specific conversation status
+        const fullConv = await api.getConversation(conversation.id);
+        if (fullConv?.status === "completed" && fullConv.goal_id) {
+          // Update state and redirect
+          setConversation(prev => prev ? { ...prev, status: "completed", goal_id: fullConv.goal_id } : null);
+          router.push(`/goals/${fullConv.goal_id}`);
+          return;
         }
       } catch (err) {
         console.error("Polling error:", err);

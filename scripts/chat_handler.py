@@ -50,19 +50,31 @@ def process_conversations():
                 break
 
         explicitly_ready = any(phrase in last_assistant_msg for phrase in [
+            # English
             "ready to create",
             "let me create",
             "creating your quest",
             "have everything i need",
             "got all the information",
-            "should i go ahead"
+            "should i go ahead",
+            # French
+            "vais créer",
+            "créer ta carte",
+            "créer votre carte",
+            "prêt à créer",
+            "j'ai tout ce qu'il me faut",
+            "je peux créer"
         ])
 
         # Check if user confirmed
         last_user_msg = user_messages[-1]["content"].lower() if user_messages else ""
         user_confirmed = any(phrase in last_user_msg for phrase in [
+            # English
             "yes", "sure", "go ahead", "create", "lets do it", "sounds good",
-            "perfect", "ok", "okay", "yep", "yeah"
+            "perfect", "ok", "okay", "yep", "yeah",
+            # French
+            "oui", "ouais", "d'accord", "vas-y", "go", "crée", "génial",
+            "parfait", "super", "c'est bon", "j'attend", "j'attends"
         ])
 
         should_finalize = explicitly_ready and user_confirmed

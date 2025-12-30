@@ -42,7 +42,7 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className={`relative p-4 rounded-xl border-2 backdrop-blur-sm min-w-[200px] max-w-[280px] ${
+        className={`relative p-5 rounded-xl border-2 backdrop-blur-sm min-w-[280px] max-w-[350px] ${
           isCompleted
             ? "border-green-500/50 shadow-lg shadow-green-500/20"
             : isActive
@@ -88,7 +88,7 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
         )}
 
         <h3
-          className={`font-bold text-base mb-1 pr-6 ${
+          className={`font-bold text-lg mb-2 pr-6 ${
             isCompleted
               ? "text-green-400"
               : isActive
@@ -101,7 +101,7 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
 
         {description && (
           <p
-            className={`text-xs line-clamp-2 ${
+            className={`text-sm line-clamp-3 ${
               isCompleted
                 ? "text-green-300/70"
                 : isActive
@@ -115,16 +115,17 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
 
         {isActive && onComplete && (
           <motion.button
-            className="mt-3 w-full py-1.5 rounded-lg text-white font-medium text-xs"
+            className="mt-4 w-full py-2.5 rounded-lg text-white font-semibold text-sm"
             style={{ background: themeColors.nodeActive }}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               onComplete();
             }}
           >
-            Complete
+            ✓ Complete
           </motion.button>
         )}
 

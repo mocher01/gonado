@@ -184,10 +184,10 @@ function BPMNQuestMapInner({
       parallelGroupStarts.set(group[0].id, group);
     });
 
-    const NODE_WIDTH = 240;
-    const NODE_HEIGHT = 120;
-    const HORIZONTAL_GAP = 150;
-    const VERTICAL_GAP = 100;
+    const NODE_WIDTH = 320;
+    const NODE_HEIGHT = 160;
+    const HORIZONTAL_GAP = 180;
+    const VERTICAL_GAP = 120;
 
     let xPosition = 100;
     const processedIds = new Set<string>();
