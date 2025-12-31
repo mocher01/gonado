@@ -294,6 +294,144 @@ class ApiClient {
   async abandonConversation(conversationId: string): Promise<{ status: string }> {
     return this.fetch(`/chat/${conversationId}/abandon`, { method: "POST" });
   }
+
+  // ============================================
+  // SOCIAL FEATURES
+  // ============================================
+
+  // Follows
+  async followTarget(followType: "user" | "goal", targetId: string): Promise<any> {
+    return this.fetch("/follows", {
+      method: "POST",
+      body: JSON.stringify({ follow_type: followType, target_id: targetId }),
+    });
+  }
+
+  async unfollowTarget(followType: "user" | "goal", targetId: string): Promise<void> {
+    await this.fetch(`/follows/${followType}/${targetId}`, { method: "DELETE" });
+  }
+
+  async getGoalFollowers(goalId: string): Promise<any> {
+    return this.fetch(`/follows/goals/${goalId}/followers`);
+  }
+
+  async checkFollowStatus(followType: "user" | "goal", targetId: string): Promise<{ is_following: boolean }> {
+    return this.fetch(`/follows/check/${followType}/${targetId}`);
+  }
+
+  // Reactions (Elemental)
+  async addReaction(targetType: "goal" | "node" | "update", targetId: string, reactionType: string): Promise<any> {
+    return this.fetch("/interactions/reactions", {
+      method: "POST",
+      body: JSON.stringify({ target_type: targetType, target_id: targetId, reaction_type: reactionType }),
+    });
+  }
+
+  async removeReaction(targetType: "goal" | "node" | "update", targetId: string): Promise<void> {
+    await this.fetch(`/interactions/reactions/${targetType}/${targetId}`, { method: "DELETE" });
+  }
+
+  async getReactions(targetType: "goal" | "node" | "update", targetId: string): Promise<any> {
+    return this.fetch(`/interactions/reactions/${targetType}/${targetId}`);
+  }
+
+  // Comments
+  async addComment(targetType: "goal" | "node" | "update", targetId: string, content: string, parentId?: string): Promise<any> {
+    return this.fetch("/comments", {
+      method: "POST",
+      body: JSON.stringify({ target_type: targetType, target_id: targetId, content, parent_id: parentId }),
+    });
+  }
+
+  async getComments(targetType: "goal" | "node" | "update", targetId: string): Promise<any> {
+    return this.fetch(`/comments/${targetType}/${targetId}`);
+  }
+
+  // Activity Feed
+  async getActivityFeed(limit?: number, offset?: number): Promise<any> {
+    const params = new URLSearchParams();
+    if (limit) params.append("limit", limit.toString());
+    if (offset) params.append("offset", offset.toString());
+    return this.fetch(`/activity/feed${params.toString() ? `?${params}` : ""}`);
+  }
+
+  async getGoalActivity(goalId: string): Promise<any> {
+    return this.fetch(`/activity/goal/${goalId}`);
+  }
+
+  // Sacred Boosts
+  async giveSacredBoost(goalId: string): Promise<any> {
+    return this.fetch(`/sacred-boosts/goals/${goalId}`, { method: "POST" });
+  }
+
+  async getGoalBoosts(goalId: string): Promise<any> {
+    return this.fetch(`/sacred-boosts/goals/${goalId}`);
+  }
+
+  async getBoostStatus(): Promise<any> {
+    return this.fetch("/sacred-boosts/status");
+  }
+
+  async checkCanBoost(goalId: string): Promise<any> {
+    return this.fetch(`/sacred-boosts/check/${goalId}`);
+  }
+
+  // Prophecies
+  async makeProphecy(goalId: string, predictedDate: string): Promise<any> {
+    return this.fetch(`/prophecies/goals/${goalId}`, {
+      method: "POST",
+      body: JSON.stringify({ goal_id: goalId, predicted_date: predictedDate }),
+    });
+  }
+
+  async getProphecyBoard(goalId: string): Promise<any> {
+    return this.fetch(`/prophecies/goals/${goalId}`);
+  }
+
+  // Resource Drops
+  async dropResource(nodeId: string, message?: string, resources?: any[]): Promise<any> {
+    return this.fetch(`/resource-drops/nodes/${nodeId}`, {
+      method: "POST",
+      body: JSON.stringify({ node_id: nodeId, message, resources }),
+    });
+  }
+
+  async getNodeDrops(nodeId: string): Promise<any> {
+    return this.fetch(`/resource-drops/nodes/${nodeId}`);
+  }
+
+  async openDrop(dropId: string): Promise<any> {
+    return this.fetch(`/resource-drops/${dropId}/open`, { method: "POST" });
+  }
+
+  async getGoalResourceSummary(goalId: string): Promise<any> {
+    return this.fetch(`/resource-drops/goals/${goalId}/summary`);
+  }
+
+  // Time Capsules
+  async buryTimeCapsule(goalId: string, message: string, triggerType: string, triggerValue?: string): Promise<any> {
+    return this.fetch(`/time-capsules/goals/${goalId}`, {
+      method: "POST",
+      body: JSON.stringify({ goal_id: goalId, message, trigger_type: triggerType, trigger_value: triggerValue }),
+    });
+  }
+
+  async getGoalCapsules(goalId: string): Promise<any> {
+    return this.fetch(`/time-capsules/goals/${goalId}`);
+  }
+
+  async openCapsule(capsuleId: string): Promise<any> {
+    return this.fetch(`/time-capsules/${capsuleId}/open`, { method: "POST" });
+  }
+
+  // User Stats
+  async getUserStats(userId: string): Promise<any> {
+    return this.fetch(`/user-stats/${userId}/stats`);
+  }
+
+  async getUserReputation(userId: string): Promise<any> {
+    return this.fetch(`/user-stats/${userId}/reputation`);
+  }
 }
 
 export const api = new ApiClient();
