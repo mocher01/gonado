@@ -124,7 +124,7 @@ async def complete_node(
     if node.status != NodeStatus.ACTIVE:
         raise HTTPException(status_code=400, detail="Node is not active")
 
-    # Complete the node
+    # Complete the node (checklist status preserved as-is)
     node.status = NodeStatus.COMPLETED
     node.completed_at = datetime.utcnow()
 

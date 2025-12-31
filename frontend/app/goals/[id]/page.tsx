@@ -9,7 +9,8 @@ import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { BPMNQuestMap } from "@/components/quest-map";
-import type { Goal, Node, User } from "@/types";
+import { NodeEditModal } from "@/components/quest-map/NodeEditModal";
+import type { Goal, Node, User, ChecklistItem } from "@/types";
 
 export default function GoalDetailPage() {
   const params = useParams();
@@ -23,6 +24,8 @@ export default function GoalDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [editingNode, setEditingNode] = useState<Node | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const goalId = params.id as string;
   const isOwner = user && goal && user.id === goal.user_id;
@@ -100,6 +103,58 @@ export default function GoalDetailPage() {
       const nodesData = await api.getGoalNodes(goalId);
       setNodes(nodesData);
       setError(err instanceof Error ? err.message : "Failed to update checklist");
+    }
+  };
+
+  const handleNodePositionChange = async (nodeId: string, x: number, y: number) => {
+    try {
+      // Optimistic update
+      setNodes(prev => prev.map(node =>
+        node.id === nodeId ? { ...node, position_x: x, position_y: y } : node
+      ));
+
+      // Persist to backend
+      await api.updateNode(nodeId, { position_x: x, position_y: y });
+    } catch (err) {
+      console.error("Failed to save position:", err);
+      // Don't revert - position is cosmetic and will be recalculated on reload anyway
+    }
+  };
+
+  const handleNodeEdit = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setEditingNode(node);
+      setIsEditModalOpen(true);
+    }
+  };
+
+  const handleNodeSave = async (nodeId: string, data: { title: string; description: string; checklist: ChecklistItem[] }) => {
+    try {
+      // Optimistic update
+      setNodes(prev => prev.map(node =>
+        node.id === nodeId
+          ? {
+              ...node,
+              title: data.title,
+              description: data.description,
+              extra_data: { ...node.extra_data, checklist: data.checklist },
+            }
+          : node
+      ));
+
+      // Persist to backend
+      await api.updateNode(nodeId, {
+        title: data.title,
+        description: data.description,
+        extra_data: { checklist: data.checklist },
+      });
+    } catch (err) {
+      // Revert on error
+      const nodesData = await api.getGoalNodes(goalId);
+      setNodes(nodesData);
+      setError(err instanceof Error ? err.message : "Failed to save changes");
+      throw err;
     }
   };
 
@@ -364,6 +419,8 @@ export default function GoalDetailPage() {
               goalTitle={goal.title}
               onCompleteNode={isOwner ? handleCompleteNode : undefined}
               onChecklistToggle={isOwner ? handleChecklistToggle : undefined}
+              onNodePositionChange={isOwner ? handleNodePositionChange : undefined}
+              onNodeEdit={isOwner ? handleNodeEdit : undefined}
             />
             {/* Back button overlay */}
             <div className="absolute top-4 left-4 z-30">
@@ -450,6 +507,17 @@ export default function GoalDetailPage() {
           </motion.div>
         )}
       </div>
+
+      {/* Node Edit Modal */}
+      <NodeEditModal
+        node={editingNode}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingNode(null);
+        }}
+        onSave={handleNodeSave}
+      />
     </div>
   );
 }

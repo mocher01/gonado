@@ -34,7 +34,7 @@
  * ✓ Button "Mark as Complete" must be visible on active nodes
  */
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Node } from "@/types";
 import { TaskNode } from "./nodes/TaskNode";
@@ -49,6 +49,8 @@ interface BPMNQuestMapProps {
   onNodeClick?: (node: Node) => void;
   onCompleteNode?: (nodeId: string) => void;
   onChecklistToggle?: (nodeId: string, itemId: string, completed: boolean) => void;
+  onNodePositionChange?: (nodeId: string, x: number, y: number) => void;
+  onNodeEdit?: (nodeId: string) => void;
 }
 
 const THEME_CONFIGS: Record<
@@ -152,6 +154,8 @@ function BPMNQuestMapInner({
   goalTitle,
   onCompleteNode,
   onChecklistToggle,
+  onNodePositionChange,
+  onNodeEdit,
   theme,
 }: BPMNQuestMapProps & { theme: typeof THEME_CONFIGS.mountain }) {
   // Import React Flow hooks dynamically
@@ -224,10 +228,10 @@ function BPMNQuestMapInner({
     });
 
     // Step 2: Layout configuration (sized for new UX-friendly nodes)
-    const NODE_WIDTH = 380;
-    const NODE_HEIGHT = 200;
-    const HORIZONTAL_GAP = 200;
-    const VERTICAL_GAP = 140;
+    const NODE_WIDTH = 420;    // TaskNode is 400px + margin
+    const NODE_HEIGHT = 350;   // Nodes with checklists can be tall
+    const HORIZONTAL_GAP = 180;
+    const VERTICAL_GAP = 60;   // Gap between parallel nodes
 
     let xPosition = 100;  // Start position (no gateway before first node)
     const processedIds = new Set<string>();
@@ -303,6 +307,9 @@ function BPMNQuestMapInner({
                 : undefined,
               onChecklistToggle: onChecklistToggle
                 ? (itemId: string, completed: boolean) => onChecklistToggle(parallelNode.id, itemId, completed)
+                : undefined,
+              onEdit: onNodeEdit
+                ? () => onNodeEdit(parallelNode.id)
                 : undefined,
               themeColors: {
                 nodeActive: theme.nodeActive,
@@ -392,6 +399,9 @@ function BPMNQuestMapInner({
             onChecklistToggle: onChecklistToggle
               ? (itemId: string, completed: boolean) => onChecklistToggle(node.id, itemId, completed)
               : undefined,
+            onEdit: onNodeEdit
+              ? () => onNodeEdit(node.id)
+              : undefined,
             themeColors: {
               nodeActive: theme.nodeActive,
               nodeCompleted: theme.nodeCompleted,
@@ -466,7 +476,55 @@ function BPMNQuestMapInner({
     }
 
     return { flowNodes: nodes, flowEdges: edges };
-  }, [sortedNodes, theme, onCompleteNode, onChecklistToggle]);
+  }, [sortedNodes, theme, onCompleteNode, onChecklistToggle, onNodeEdit]);
+
+  // State for draggable nodes
+  const [draggableNodes, setDraggableNodes] = useState(flowNodes);
+  const [draggableEdges, setDraggableEdges] = useState(flowEdges);
+
+  // Sync when flow data changes
+  useEffect(() => {
+    setDraggableNodes(flowNodes);
+    setDraggableEdges(flowEdges);
+  }, [flowNodes, flowEdges]);
+
+  // Handle node position changes (drag) using React Flow's applyNodeChanges
+  const onNodesChange = useCallback((changes: any[]) => {
+    setDraggableNodes((nds) => {
+      // Apply changes manually for position updates
+      let newNodes = [...nds];
+      changes.forEach((change) => {
+        if (change.type === "position") {
+          const nodeIndex = newNodes.findIndex((n) => n.id === change.id);
+          if (nodeIndex !== -1) {
+            newNodes[nodeIndex] = {
+              ...newNodes[nodeIndex],
+              position: change.position ?? newNodes[nodeIndex].position,
+              dragging: change.dragging,
+            };
+          }
+        }
+      });
+      return newNodes;
+    });
+  }, []);
+
+  // Persist position on drag end
+  const onNodeDragStop = useCallback(
+    (_event: any, node: any) => {
+      // Only persist task nodes (not gateways or virtual nodes)
+      if (
+        onNodePositionChange &&
+        !node.id.startsWith("fork-") &&
+        !node.id.startsWith("join-") &&
+        node.id !== "end" &&
+        node.id !== "start"
+      ) {
+        onNodePositionChange(node.id, node.position.x, node.position.y);
+      }
+    },
+    [onNodePositionChange]
+  );
 
   const completedCount = inputNodes.filter(
     (n) => n.status === "completed"
@@ -495,10 +553,13 @@ function BPMNQuestMapInner({
   return (
     <>
       <ReactFlow
-        nodes={flowNodes}
-        edges={flowEdges}
+        nodes={draggableNodes}
+        edges={draggableEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        nodesDraggable={true}
+        onNodesChange={onNodesChange}
+        onNodeDragStop={onNodeDragStop}
         fitView
         fitViewOptions={{ padding: 0.3 }}
         minZoom={0.3}
@@ -565,11 +626,11 @@ function BPMNQuestMapInner({
         {/* Instructions Panel */}
         <Panel position="bottom-center">
           <div className="flex items-center gap-4 text-gray-400 text-sm bg-black/50 px-6 py-3 rounded-full backdrop-blur-sm border border-white/10">
-            <span>🖱️ Drag to pan</span>
+            <span>📦 Drag nodes to reposition</span>
+            <span className="text-white/30">|</span>
+            <span>🖱️ Drag background to pan</span>
             <span className="text-white/30">|</span>
             <span>⚙️ Scroll to zoom</span>
-            <span className="text-white/30">|</span>
-            <span>|| = Parallel tasks</span>
           </div>
         </Panel>
       </ReactFlow>

@@ -33,6 +33,7 @@ interface TaskNodeData {
   };
   onComplete?: () => void;
   onChecklistToggle?: (itemId: string, completed: boolean) => void;
+  onEdit?: () => void;
   themeColors: {
     nodeActive: string;
     nodeCompleted: string;
@@ -84,7 +85,7 @@ function parseDescription(desc: string | null): string[] {
 }
 
 function TaskNodeComponent({ data, selected }: TaskNodeProps) {
-  const { title, description, status, order, onComplete, onChecklistToggle, themeColors, extra_data } = data;
+  const { title, description, status, order, onComplete, onChecklistToggle, onEdit, themeColors, extra_data } = data;
 
   const isCompleted = status === "completed";
   const isActive = status === "active";
@@ -171,12 +172,30 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
             </span>
           </div>
 
-          {/* Parallel badge */}
-          {data.can_parallel && (
-            <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-500/20 text-emerald-300">
-              ⚡ Parallel
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Parallel badge */}
+            {data.can_parallel && (
+              <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-500/20 text-emerald-300">
+                ⚡ Parallel
+              </span>
+            )}
+
+            {/* Edit button */}
+            {onEdit && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                title="Edit step"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Content */}

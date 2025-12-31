@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 interface MilestoneNodeData {
   title: string;
   status: "locked" | "active" | "completed" | "failed";
+  onComplete?: () => void;
   themeColors: {
     pathColor: string;
     nodeCompleted: string;
@@ -18,7 +19,7 @@ interface MilestoneNodeProps {
 }
 
 function MilestoneNodeComponent({ data }: MilestoneNodeProps) {
-  const { title, status, themeColors } = data;
+  const { title, status, themeColors, onComplete } = data;
   const isCompleted = status === "completed";
   const isActive = status === "active";
   const isLocked = status === "locked";
@@ -112,6 +113,24 @@ function MilestoneNodeComponent({ data }: MilestoneNodeProps) {
           >
             {isCompleted ? "🎉 Achieved!" : isActive ? "Current Goal" : "Milestone"}
           </div>
+
+          {/* Complete button for active milestones */}
+          {isActive && onComplete && (
+            <motion.button
+              className="mt-4 px-6 py-2 rounded-xl text-white font-semibold text-sm"
+              style={{
+                background: "linear-gradient(135deg, #10b981, #059669)",
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onComplete();
+              }}
+            >
+              Complete Milestone
+            </motion.button>
+          )}
         </div>
 
         {/* Celebration particles for completed */}

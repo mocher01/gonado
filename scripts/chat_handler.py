@@ -161,15 +161,33 @@ Generate a JSON object with:
   - estimated_duration: Estimated hours to complete (integer)
 
 CHECKLIST FORMAT (CRITICAL):
-- 3-5 items per node is ideal
+- 3-5 items per node is ideal for TASK nodes
 - Each item = ONE clear action with a verb
 - Keep items under 60 characters
-- Example checklist:
-  "checklist": [
-    {{"id": "item-1", "text": "Research local options online", "completed": false}},
-    {{"id": "item-2", "text": "Compare top 3 choices", "completed": false}},
-    {{"id": "item-3", "text": "Make final decision", "completed": false}}
-  ]
+- Example TASK node:
+  {{
+    "title": "Research Options",
+    "description": "Find and compare the best options available.",
+    "checklist": [
+      {{"id": "item-1", "text": "Research local options online", "completed": false}},
+      {{"id": "item-2", "text": "Compare top 3 choices", "completed": false}},
+      {{"id": "item-3", "text": "Make final decision", "completed": false}}
+    ],
+    "order": 1,
+    "node_type": "task",
+    "can_parallel": false,
+    "estimated_duration": 4
+  }}
+- Example MILESTONE node (no checklist!):
+  {{
+    "title": "Foundation Complete",
+    "description": "Core skills acquired, ready for next phase.",
+    "checklist": [],
+    "order": 4,
+    "node_type": "milestone",
+    "can_parallel": false,
+    "estimated_duration": 0
+  }}
 
 MILESTONE RULES:
 - Use "milestone" node_type ONLY for significant achievements (25%, 50%, 75% progress points)
@@ -177,12 +195,20 @@ MILESTONE RULES:
 - Milestones mark phase transitions, not just any completed task
 - Good: "Foundation Complete", "Ready to Launch"
 - Bad: "Research Done", "Step 3 Complete"
+- IMPORTANT: Milestones should have EMPTY checklist array (checklist: []) - they are checkpoints, not tasks!
 
-IMPORTANT RULES:
-1. Keep it SIMPLE - most goals should be sequential (can_parallel: false for all nodes)
-2. Only use can_parallel: true when tasks genuinely can happen at the same time
-3. Need at least 2 CONSECUTIVE can_parallel: true nodes to create a parallel branch
-4. First node is always the starting point - no special handling needed
+PARALLEL TASK RULES:
+- Keep it SIMPLE - most goals should be sequential (can_parallel: false for all nodes)
+- Only use can_parallel: true when tasks genuinely can happen at the same time
+- Need at least 2 CONSECUTIVE can_parallel: true nodes to create a parallel branch
+- Maximum 2 nodes in a parallel group to avoid visual overlap
+- Parallel nodes are stacked vertically in the UI, so limit to 2 at most
+
+IMPORTANT LAYOUT RULES:
+1. First node is always the starting point - no special handling needed
+2. Nodes with many checklist items (4+) will be tall - consider this for parallel groups
+3. Keep parallel groups small (max 2 nodes) to prevent visual overlap
+4. Total nodes: 5-10 is ideal, avoid more than 10
 
 Output ONLY valid JSON, no other text."""
 
