@@ -19,10 +19,12 @@ class TargetType(str, Enum):
 
 
 class ReactionType(str, Enum):
-    CHEER = "cheer"
-    HELPFUL = "helpful"
-    INSPIRING = "inspiring"
-    LOVE = "love"
+    # Elemental reactions for unique UX
+    FIRE = "fire"           # "You're on fire, keep going!"
+    WATER = "water"         # "Stay cool, pace yourself"
+    NATURE = "nature"       # "Growing beautifully"
+    LIGHTNING = "lightning" # "Fast progress!"
+    MAGIC = "magic"         # "This inspired me"
 
 
 class Interaction(Base):

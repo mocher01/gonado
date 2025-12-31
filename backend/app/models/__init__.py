@@ -12,6 +12,10 @@ from app.models.comment import Comment, CommentTargetType
 from app.models.goal_share import GoalShare, SharePermission, ShareStatus
 from app.models.activity import Activity, ActivityType, ActivityTargetType
 from app.models.user_stats import UserStats
+from app.models.prophecy import Prophecy
+from app.models.time_capsule import TimeCapsule, CapsuleTriggerType
+from app.models.resource_drop import ResourceDrop
+from app.models.sacred_boost import SacredBoost
 
 __all__ = [
     "User",
@@ -28,4 +32,8 @@ __all__ = [
     "GoalShare", "SharePermission", "ShareStatus",
     "Activity", "ActivityType", "ActivityTargetType",
     "UserStats",
+    "Prophecy",
+    "TimeCapsule", "CapsuleTriggerType",
+    "ResourceDrop",
+    "SacredBoost",
 ]
