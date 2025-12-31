@@ -150,27 +150,39 @@ Generate a JSON object with:
 - target_date: ISO date string or null
 - nodes: Array of steps (5-10 nodes typically). Each node has:
   - title: Short step name (max 50 chars)
-  - description: TODO-style checklist with NEWLINES between items. Use \\n to separate.
-    Example: "Research options online\\nCompare 3 providers\\nSchedule consultations"
+  - description: Brief overview of this step (1-2 sentences max)
+  - checklist: Array of actionable items. Each item has:
+    - id: Unique identifier (use format "item-1", "item-2", etc.)
+    - text: The action item (clear verb + task, under 60 chars)
+    - completed: false (always false on creation)
   - order: Sequential number starting from 1
   - node_type: "task" (default) or "milestone" (use sparingly for major checkpoints)
   - can_parallel: Boolean - true ONLY if this step can be done SIMULTANEOUSLY with adjacent steps
   - estimated_duration: Estimated hours to complete (integer)
 
-DESCRIPTION FORMAT (CRITICAL):
-- Use \\n (newline) to separate each action item
-- Each item = ONE clear action verb + task
-- Keep each item under 80 characters
-- NO prose paragraphs, NO long sentences
-- GOOD: "Create account on platform\\nComplete profile setup\\nVerify email address"
-- BAD: "First, you should create an account on the platform. Then complete your profile..."
+CHECKLIST FORMAT (CRITICAL):
+- 3-5 items per node is ideal
+- Each item = ONE clear action with a verb
+- Keep items under 60 characters
+- Example checklist:
+  "checklist": [
+    {{"id": "item-1", "text": "Research local options online", "completed": false}},
+    {{"id": "item-2", "text": "Compare top 3 choices", "completed": false}},
+    {{"id": "item-3", "text": "Make final decision", "completed": false}}
+  ]
+
+MILESTONE RULES:
+- Use "milestone" node_type ONLY for significant achievements (25%, 50%, 75% progress points)
+- Maximum 1-2 milestones per goal
+- Milestones mark phase transitions, not just any completed task
+- Good: "Foundation Complete", "Ready to Launch"
+- Bad: "Research Done", "Step 3 Complete"
 
 IMPORTANT RULES:
 1. Keep it SIMPLE - most goals should be sequential (can_parallel: false for all nodes)
 2. Only use can_parallel: true when tasks genuinely can happen at the same time
 3. Need at least 2 CONSECUTIVE can_parallel: true nodes to create a parallel branch
-4. Use "milestone" node_type sparingly (1-2 per goal maximum)
-5. First node is always the starting point - no special handling needed
+4. First node is always the starting point - no special handling needed
 
 Output ONLY valid JSON, no other text."""
 

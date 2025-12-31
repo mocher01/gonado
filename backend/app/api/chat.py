@@ -490,6 +490,11 @@ async def finalize_conversation(
             except ValueError:
                 node_type = NodeType.TASK
 
+            # Build extra_data with checklist
+            extra_data = {}
+            if node_data.get("checklist"):
+                extra_data["checklist"] = node_data.get("checklist")
+
             node = Node(
                 goal_id=goal.id,
                 title=node_data.get("title", f"Step {i+1}"),
@@ -498,7 +503,8 @@ async def finalize_conversation(
                 status="active" if i == 0 else "locked",
                 node_type=node_type,
                 can_parallel=node_data.get("can_parallel", False),
-                estimated_duration=node_data.get("estimated_duration")
+                estimated_duration=node_data.get("estimated_duration"),
+                extra_data=extra_data if extra_data else {}
             )
             db.add(node)
 

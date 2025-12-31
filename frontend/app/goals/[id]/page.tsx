@@ -76,6 +76,33 @@ export default function GoalDetailPage() {
     }
   };
 
+  const handleChecklistToggle = async (nodeId: string, itemId: string, completed: boolean) => {
+    try {
+      // Optimistic update
+      setNodes(prev => prev.map(node => {
+        if (node.id !== nodeId) return node;
+        const checklist = node.extra_data?.checklist || [];
+        return {
+          ...node,
+          extra_data: {
+            ...node.extra_data,
+            checklist: checklist.map(item =>
+              item.id === itemId ? { ...item, completed } : item
+            ),
+          },
+        };
+      }));
+
+      // API call
+      await api.updateChecklistItem(nodeId, itemId, completed);
+    } catch (err) {
+      // Revert on error
+      const nodesData = await api.getGoalNodes(goalId);
+      setNodes(nodesData);
+      setError(err instanceof Error ? err.message : "Failed to update checklist");
+    }
+  };
+
   const shareUrl = typeof window !== "undefined"
     ? `${window.location.origin}/goals/${goalId}`
     : "";
@@ -336,6 +363,7 @@ export default function GoalDetailPage() {
               worldTheme={goal.world_theme || "mountain"}
               goalTitle={goal.title}
               onCompleteNode={isOwner ? handleCompleteNode : undefined}
+              onChecklistToggle={isOwner ? handleChecklistToggle : undefined}
             />
             {/* Back button overlay */}
             <div className="absolute top-4 left-4 z-30">

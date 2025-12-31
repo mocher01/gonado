@@ -177,6 +177,52 @@ async def complete_node(
     return node
 
 
+from pydantic import BaseModel
+
+class ChecklistItemUpdate(BaseModel):
+    item_id: str
+    completed: bool
+
+
+@router.put("/{node_id}/checklist", response_model=NodeResponse)
+async def update_checklist_item(
+    node_id: UUID,
+    update: ChecklistItemUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Toggle a checklist item's completion status."""
+    result = await db.execute(
+        select(Node).join(Goal).where(
+            Node.id == node_id,
+            Goal.user_id == current_user.id
+        )
+    )
+    node = result.scalar_one_or_none()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+
+    # Update the checklist in extra_data
+    extra_data = dict(node.extra_data) if node.extra_data else {}
+    checklist = extra_data.get("checklist", [])
+
+    item_found = False
+    for item in checklist:
+        if item.get("id") == update.item_id:
+            item["completed"] = update.completed
+            item_found = True
+            break
+
+    if not item_found:
+        raise HTTPException(status_code=404, detail="Checklist item not found")
+
+    extra_data["checklist"] = checklist
+    node.extra_data = extra_data
+
+    await db.flush()
+    return node
+
+
 @router.delete("/{node_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_node(
     node_id: UUID,

@@ -15,7 +15,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = "inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900";
 
     const variants = {
-      primary: "bg-gradient-to-r from-primary-500 to-accent-500 text-white hover:shadow-lg hover:shadow-primary-500/25 hover:scale-105 focus:ring-primary-500",
+      primary: "bg-gradient-to-r from-primary-500 to-accent-600 text-white hover:shadow-lg hover:shadow-accent-500/25 hover:scale-105 focus:ring-accent-500",
       secondary: "bg-white/10 text-white hover:bg-white/20 focus:ring-white/50",
       outline: "border border-white/20 text-white hover:bg-white/10 focus:ring-white/50",
       ghost: "text-white hover:bg-white/10 focus:ring-white/50",

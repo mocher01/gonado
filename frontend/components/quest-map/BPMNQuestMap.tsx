@@ -48,6 +48,7 @@ interface BPMNQuestMapProps {
   goalTitle: string;
   onNodeClick?: (node: Node) => void;
   onCompleteNode?: (nodeId: string) => void;
+  onChecklistToggle?: (nodeId: string, itemId: string, completed: boolean) => void;
 }
 
 const THEME_CONFIGS: Record<
@@ -110,12 +111,12 @@ const THEME_CONFIGS: Record<
   },
   space: {
     bg: "#0a0a1a",
-    bgGradient: "linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #2a1a4a 100%)",
-    pathColor: "#a855f7",
-    pathGlow: "rgba(168, 85, 247, 0.5)",
-    nodeActive: "linear-gradient(135deg, #a855f7, #7c3aed)",
+    bgGradient: "linear-gradient(135deg, #0a0a1a 0%, #0d1a2a 50%, #0a2a3a 100%)",
+    pathColor: "#06b6d4",
+    pathGlow: "rgba(6, 182, 212, 0.5)",
+    nodeActive: "linear-gradient(135deg, #06b6d4, #0891b2)",
     nodeCompleted: "linear-gradient(135deg, #22c55e, #16a34a)",
-    nodeLocked: "linear-gradient(135deg, #1f1f3f, #0a0a1a)",
+    nodeLocked: "linear-gradient(135deg, #1f2937, #0a0a1a)",
     icon: "🚀",
     particles: ["⭐", "🌟", "💫"],
   },
@@ -150,6 +151,7 @@ function BPMNQuestMapInner({
   worldTheme,
   goalTitle,
   onCompleteNode,
+  onChecklistToggle,
   theme,
 }: BPMNQuestMapProps & { theme: typeof THEME_CONFIGS.mountain }) {
   // Import React Flow hooks dynamically
@@ -295,8 +297,12 @@ function BPMNQuestMapInner({
               status: parallelNode.status,
               order: parallelNode.order,
               can_parallel: parallelNode.can_parallel,
+              extra_data: parallelNode.extra_data,
               onComplete: onCompleteNode
                 ? () => onCompleteNode(parallelNode.id)
+                : undefined,
+              onChecklistToggle: onChecklistToggle
+                ? (itemId: string, completed: boolean) => onChecklistToggle(parallelNode.id, itemId, completed)
                 : undefined,
               themeColors: {
                 nodeActive: theme.nodeActive,
@@ -379,8 +385,12 @@ function BPMNQuestMapInner({
             status: node.status,
             order: node.order,
             can_parallel: node.can_parallel,
+            extra_data: node.extra_data,
             onComplete: onCompleteNode
               ? () => onCompleteNode(node.id)
+              : undefined,
+            onChecklistToggle: onChecklistToggle
+              ? (itemId: string, completed: boolean) => onChecklistToggle(node.id, itemId, completed)
               : undefined,
             themeColors: {
               nodeActive: theme.nodeActive,
@@ -456,7 +466,7 @@ function BPMNQuestMapInner({
     }
 
     return { flowNodes: nodes, flowEdges: edges };
-  }, [sortedNodes, theme, onCompleteNode]);
+  }, [sortedNodes, theme, onCompleteNode, onChecklistToggle]);
 
   const completedCount = inputNodes.filter(
     (n) => n.status === "completed"

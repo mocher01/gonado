@@ -69,12 +69,12 @@ const THEME_CONFIGS: Record<string, {
   },
   space: {
     bg: "#0a0a1a",
-    bgGradient: "linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #2a1a4a 100%)",
-    pathColor: "#a855f7",
-    pathGlow: "rgba(168, 85, 247, 0.5)",
-    nodeActive: "linear-gradient(135deg, #a855f7, #7c3aed)",
+    bgGradient: "linear-gradient(135deg, #0a0a1a 0%, #0d1a2a 50%, #0a2a3a 100%)",
+    pathColor: "#06b6d4",
+    pathGlow: "rgba(6, 182, 212, 0.5)",
+    nodeActive: "linear-gradient(135deg, #06b6d4, #0891b2)",
     nodeCompleted: "linear-gradient(135deg, #22c55e, #16a34a)",
-    nodeLocked: "linear-gradient(135deg, #1f1f3f, #0a0a1a)",
+    nodeLocked: "linear-gradient(135deg, #1f2937, #0a0a1a)",
     icon: "🚀",
     particles: ["⭐", "🌟", "💫"]
   },

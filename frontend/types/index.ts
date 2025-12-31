@@ -36,6 +36,17 @@ export interface NodeDependency {
   created_at: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export interface NodeExtraData {
+  checklist?: ChecklistItem[];
+  [key: string]: unknown;
+}
+
 export interface Node {
   id: string;
   goal_id: string;
@@ -45,7 +56,7 @@ export interface Node {
   status: "locked" | "active" | "completed" | "failed";
   position_x: number;
   position_y: number;
-  extra_data: Record<string, unknown>;
+  extra_data: NodeExtraData;
   due_date: string | null;
   completed_at: string | null;
   created_at: string;

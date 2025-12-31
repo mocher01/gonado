@@ -16,13 +16,23 @@ import { motion } from "framer-motion";
  * ✓ Clear status indicators
  */
 
+interface ChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
 interface TaskNodeData {
   title: string;
   description: string | null;
   status: "locked" | "active" | "completed" | "failed";
   order: number;
   can_parallel: boolean;
+  extra_data?: {
+    checklist?: ChecklistItem[];
+  };
   onComplete?: () => void;
+  onChecklistToggle?: (itemId: string, completed: boolean) => void;
   themeColors: {
     nodeActive: string;
     nodeCompleted: string;
@@ -74,13 +84,16 @@ function parseDescription(desc: string | null): string[] {
 }
 
 function TaskNodeComponent({ data, selected }: TaskNodeProps) {
-  const { title, description, status, order, onComplete, themeColors } = data;
+  const { title, description, status, order, onComplete, onChecklistToggle, themeColors, extra_data } = data;
 
   const isCompleted = status === "completed";
   const isActive = status === "active";
   const isLocked = status === "locked";
 
-  const bulletPoints = parseDescription(description);
+  // Get checklist from extra_data, or fallback to parsing description
+  const checklist = extra_data?.checklist || [];
+  const bulletPoints = checklist.length === 0 ? parseDescription(description) : [];
+  const completedCount = checklist.filter(i => i.completed).length;
 
   // Status icons
   const statusIcon = isCompleted ? "✓" : isActive ? "●" : "○";
@@ -104,39 +117,35 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
         } ${isLocked ? "opacity-60" : ""}`}
         style={{
           background: isCompleted
-            ? "linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.25) 100%)"
+            ? "rgba(34, 197, 94, 0.08)"
             : isActive
-            ? "linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(245, 158, 11, 0.2) 100%)"
-            : "linear-gradient(135deg, rgba(51, 65, 85, 0.3) 0%, rgba(30, 41, 59, 0.4) 100%)",
-          border: `2px solid ${
-            isCompleted ? "rgba(34, 197, 94, 0.5)" : isActive ? "rgba(251, 191, 36, 0.5)" : "rgba(71, 85, 105, 0.3)"
+            ? "rgba(251, 191, 36, 0.06)"
+            : "rgba(30, 41, 59, 0.6)",
+          border: `1px solid ${
+            isCompleted ? "rgba(34, 197, 94, 0.3)" : isActive ? "rgba(251, 191, 36, 0.3)" : "rgba(255, 255, 255, 0.08)"
           }`,
           boxShadow: isCompleted
-            ? "0 8px 32px rgba(34, 197, 94, 0.25)"
+            ? "0 4px 16px rgba(34, 197, 94, 0.12)"
             : isActive
-            ? "0 8px 32px rgba(251, 191, 36, 0.2)"
-            : "none",
+            ? "0 4px 16px rgba(251, 191, 36, 0.1)"
+            : "0 2px 8px rgba(0, 0, 0, 0.2)",
         }}
       >
-        {/* Active pulse */}
-        {isActive && (
-          <motion.div
-            className="absolute inset-0 rounded-2xl pointer-events-none"
-            style={{ border: "2px solid rgba(251, 191, 36, 0.4)" }}
-            animate={{ opacity: [0.3, 0.7, 0.3], scale: [1, 1.01, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          />
-        )}
 
         {/* Header - Step number and status */}
         <div
-          className="px-4 py-3 flex items-center justify-between"
+          className="px-4 py-3 flex items-center justify-between border-b"
           style={{
             background: isCompleted
-              ? "rgba(34, 197, 94, 0.2)"
+              ? "rgba(34, 197, 94, 0.1)"
+              : isActive
+              ? "rgba(251, 191, 36, 0.08)"
+              : "rgba(255, 255, 255, 0.02)",
+            borderColor: isCompleted
+              ? "rgba(34, 197, 94, 0.15)"
               : isActive
               ? "rgba(251, 191, 36, 0.15)"
-              : "rgba(51, 65, 85, 0.3)",
+              : "rgba(255, 255, 255, 0.05)",
           }}
         >
           <div className="flex items-center gap-3">
@@ -164,7 +173,7 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
 
           {/* Parallel badge */}
           {data.can_parallel && (
-            <span className="px-2 py-1 rounded text-xs font-medium bg-purple-500/20 text-purple-300">
+            <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-500/20 text-emerald-300">
               ⚡ Parallel
             </span>
           )}
@@ -179,7 +188,75 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
             {title}
           </h3>
 
-          {/* Description as TODO list */}
+          {/* Brief description */}
+          {description && checklist.length > 0 && (
+            <p className={`text-sm mb-3 ${
+              isCompleted ? "text-green-300/70" : isActive ? "text-slate-400" : "text-slate-500"
+            }`}>
+              {description}
+            </p>
+          )}
+
+          {/* Interactive Checklist */}
+          {checklist.length > 0 && (
+            <div className="space-y-2">
+              {checklist.map((item) => (
+                <div
+                  key={item.id}
+                  className={`flex items-start gap-3 text-sm group ${
+                    isActive && onChecklistToggle ? "cursor-pointer" : ""
+                  }`}
+                  onClick={(e) => {
+                    if (isActive && onChecklistToggle) {
+                      e.stopPropagation();
+                      onChecklistToggle(item.id, !item.completed);
+                    }
+                  }}
+                >
+                  {/* Checkbox */}
+                  <div
+                    className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                      item.completed
+                        ? "bg-emerald-500 border-emerald-500"
+                        : isActive
+                        ? "border-slate-500 group-hover:border-emerald-400"
+                        : "border-slate-600"
+                    }`}
+                  >
+                    {item.completed && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 12 12">
+                        <path d="M10.28 2.28L3.989 8.575 1.695 6.28A1 1 0 00.28 7.695l3 3a1 1 0 001.414 0l7-7A1 1 0 0010.28 2.28z" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className={`leading-snug ${
+                    item.completed
+                      ? "line-through text-slate-500"
+                      : isCompleted
+                      ? "text-green-300"
+                      : isActive
+                      ? "text-slate-200"
+                      : "text-slate-500"
+                  }`}>
+                    {item.text}
+                  </span>
+                </div>
+              ))}
+
+              {/* Progress bar */}
+              <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-300"
+                    style={{ width: `${checklist.length > 0 ? (completedCount / checklist.length) * 100 : 0}%` }}
+                  />
+                </div>
+                <span>{completedCount}/{checklist.length}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Fallback: Legacy bullet points (from description) */}
           {bulletPoints.length > 0 && (
             <ul className="space-y-2">
               {bulletPoints.map((point, idx) => (
@@ -200,8 +277,8 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
             </ul>
           )}
 
-          {/* Show full description if no bullet points parsed */}
-          {bulletPoints.length === 0 && description && (
+          {/* Fallback: Show full description if no checklist or bullet points */}
+          {checklist.length === 0 && bulletPoints.length === 0 && description && (
             <p className={`text-sm leading-relaxed ${
               isCompleted ? "text-green-300/80" : isActive ? "text-slate-300" : "text-slate-500"
             }`}>
@@ -212,20 +289,19 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
           {/* Complete button - ALWAYS visible for active nodes */}
           {isActive && onComplete && (
             <motion.button
-              className="mt-4 w-full py-3 rounded-xl text-white font-bold text-base flex items-center justify-center gap-2"
+              className="mt-4 w-full py-3 rounded-xl text-white font-semibold text-base flex items-center justify-center gap-2 transition-shadow"
               style={{
-                background: `linear-gradient(135deg, ${themeColors.nodeActive}, ${themeColors.pathColor})`,
-                boxShadow: `0 4px 20px ${themeColors.pathColor}50`,
+                background: "linear-gradient(135deg, #10b981, #059669)",
               }}
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.01, boxShadow: "0 4px 16px rgba(16, 185, 129, 0.3)" }}
+              whileTap={{ scale: 0.99 }}
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 onComplete();
               }}
             >
-              <span className="text-xl">✓</span>
+              <span className="text-lg">✓</span>
               <span>Mark as Complete</span>
             </motion.button>
           )}

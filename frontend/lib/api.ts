@@ -139,6 +139,13 @@ class ApiClient {
     return this.fetch<Node>(`/nodes/${id}/complete`, { method: "POST" });
   }
 
+  async updateChecklistItem(nodeId: string, itemId: string, completed: boolean): Promise<Node> {
+    return this.fetch<Node>(`/nodes/${nodeId}/checklist`, {
+      method: "PUT",
+      body: JSON.stringify({ item_id: itemId, completed }),
+    });
+  }
+
   // Updates
   async createUpdate(nodeId: string, data: { content: string; media_urls?: string[]; update_type?: string }): Promise<Update> {
     return this.fetch<Update>(`/updates/nodes/${nodeId}`, {

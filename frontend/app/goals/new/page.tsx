@@ -167,7 +167,7 @@ export default function NewGoalPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
@@ -180,7 +180,7 @@ export default function NewGoalPage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
       <div className="border-b border-white/10 bg-black/20 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -216,14 +216,14 @@ export default function NewGoalPage() {
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                     message.role === "user"
-                      ? "bg-purple-600 text-white rounded-br-md"
+                      ? "bg-emerald-600 text-white rounded-br-md"
                       : message.role === "system"
                       ? "bg-green-600/20 text-green-400 border border-green-500/30"
                       : "bg-white/10 text-white rounded-bl-md"
                   }`}
                 >
                   {message.role === "assistant" && (
-                    <div className="flex items-center gap-2 mb-1 text-purple-400 text-sm">
+                    <div className="flex items-center gap-2 mb-1 text-emerald-400 text-sm">
                       <span>✨</span>
                       <span>Quest Guide</span>
                     </div>
@@ -242,7 +242,7 @@ export default function NewGoalPage() {
               className="flex justify-start"
             >
               <div className="bg-white/10 rounded-2xl rounded-bl-md px-4 py-3">
-                <div className="flex items-center gap-2 text-purple-400">
+                <div className="flex items-center gap-2 text-emerald-400">
                   <span>✨</span>
                   <span>Crafting your path</span>
                   <motion.span
@@ -282,7 +282,7 @@ export default function NewGoalPage() {
                   : "Type your message..."
               }
               disabled={!conversation || conversation.status === "waiting"}
-              className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+              className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:opacity-50"
               autoFocus
             />
             <motion.button
@@ -290,7 +290,7 @@ export default function NewGoalPage() {
               disabled={!input.trim() || !conversation || conversation.status === "waiting"}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="px-6 py-3 bg-purple-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-purple-500 transition-colors"
+              className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-emerald-500 transition-colors"
             >
               Send
             </motion.button>
