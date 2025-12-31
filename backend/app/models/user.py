@@ -33,3 +33,4 @@ class User(Base):
     notifications = relationship("Notification", back_populates="user", lazy="selectin")
     badges = relationship("UserBadge", back_populates="user", lazy="selectin")
     xp_transactions = relationship("XPTransaction", back_populates="user", lazy="selectin")
+    stats = relationship("UserStats", back_populates="user", uselist=False, lazy="selectin")

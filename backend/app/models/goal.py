@@ -10,6 +10,7 @@ from app.database import Base
 class GoalVisibility(str, Enum):
     PUBLIC = "public"
     PRIVATE = "private"
+    SHARED = "shared"
     FRIENDS = "friends"
 
 
@@ -46,3 +47,4 @@ class Goal(Base):
     # Relationships
     user = relationship("User", back_populates="goals")
     nodes = relationship("Node", back_populates="goal", lazy="selectin", order_by="Node.order")
+    shares = relationship("GoalShare", back_populates="goal", lazy="selectin", cascade="all, delete-orphan")

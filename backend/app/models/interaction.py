@@ -18,6 +18,13 @@ class TargetType(str, Enum):
     GOAL = "goal"
 
 
+class ReactionType(str, Enum):
+    CHEER = "cheer"
+    HELPFUL = "helpful"
+    INSPIRING = "inspiring"
+    LOVE = "love"
+
+
 class Interaction(Base):
     __tablename__ = "interactions"
 

@@ -1,9 +1,25 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime, Text, ForeignKey
+from enum import Enum
+from sqlalchemy import String, Integer, DateTime, Text, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.database import Base
+
+
+class BadgeCategory(str, Enum):
+    ACHIEVEMENT = "achievement"  # General achievements (completing goals, nodes)
+    SOCIAL = "social"            # Social interactions (followers, comments, reactions)
+    STREAK = "streak"            # Streak-related badges
+    MILESTONE = "milestone"      # Major milestones
+    SPECIAL = "special"          # Special event or rare badges
+
+
+class BadgeRarity(str, Enum):
+    COMMON = "common"
+    RARE = "rare"
+    EPIC = "epic"
+    LEGENDARY = "legendary"
 
 
 class Badge(Base):
@@ -15,6 +31,16 @@ class Badge(Base):
     icon_url: Mapped[str] = mapped_column(String(500), nullable=True)
     criteria: Mapped[dict] = mapped_column(JSONB, default=dict)
     xp_reward: Mapped[int] = mapped_column(Integer, default=0)
+
+    # New fields for enhanced badge system
+    category: Mapped[BadgeCategory] = mapped_column(
+        SQLEnum(BadgeCategory, values_callable=lambda x: [e.value for e in x]),
+        default=BadgeCategory.ACHIEVEMENT
+    )
+    rarity: Mapped[BadgeRarity] = mapped_column(
+        SQLEnum(BadgeRarity, values_callable=lambda x: [e.value for e in x]),
+        default=BadgeRarity.COMMON
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

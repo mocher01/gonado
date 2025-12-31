@@ -3,11 +3,15 @@ from app.models.goal import Goal, GoalVisibility, GoalStatus
 from app.models.node import Node, NodeStatus, NodeType, DependencyType, NodeDependency
 from app.models.update import Update, UpdateType
 from app.models.interaction import Interaction, InteractionType, TargetType
-from app.models.gamification import Badge, UserBadge, XPTransaction
+from app.models.gamification import Badge, UserBadge, XPTransaction, BadgeCategory, BadgeRarity
 from app.models.notification import Notification
 from app.models.follow import Follow, FollowType
 from app.models.generation_queue import GenerationQueue, QueueStatus
 from app.models.conversation import Conversation, ConversationMessage, ConversationStatus, MessageRole
+from app.models.comment import Comment, CommentTargetType
+from app.models.goal_share import GoalShare, SharePermission, ShareStatus
+from app.models.activity import Activity, ActivityType, ActivityTargetType
+from app.models.user_stats import UserStats
 
 __all__ = [
     "User",
@@ -15,9 +19,13 @@ __all__ = [
     "Node", "NodeStatus", "NodeType", "DependencyType", "NodeDependency",
     "Update", "UpdateType",
     "Interaction", "InteractionType", "TargetType",
-    "Badge", "UserBadge", "XPTransaction",
+    "Badge", "UserBadge", "XPTransaction", "BadgeCategory", "BadgeRarity",
     "Notification",
     "Follow", "FollowType",
     "GenerationQueue", "QueueStatus",
     "Conversation", "ConversationMessage", "ConversationStatus", "MessageRole",
+    "Comment", "CommentTargetType",
+    "GoalShare", "SharePermission", "ShareStatus",
+    "Activity", "ActivityType", "ActivityTargetType",
+    "UserStats",
 ]

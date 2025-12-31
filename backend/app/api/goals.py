@@ -2,16 +2,51 @@ from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from app.database import get_db
 from app.api.deps import get_current_user, get_optional_user
 from app.schemas.goal import GoalCreate, GoalUpdate, GoalResponse, GoalListResponse
 from app.schemas.node import NodeResponse
 from app.models.goal import Goal, GoalVisibility, GoalStatus
+from app.models.goal_share import GoalShare, ShareStatus
 from app.models.node import Node
 from app.models.user import User
 from app.services.ai_planner import ai_planner_service
 from app.services.gamification import gamification_service, XP_REWARDS
+
+
+async def check_goal_access(
+    goal: Goal,
+    current_user: Optional[User],
+    db: AsyncSession
+) -> bool:
+    """Check if user has access to view a goal."""
+    # Public goals are accessible to everyone
+    if goal.visibility == GoalVisibility.PUBLIC:
+        return True
+
+    # No user means no access to non-public goals
+    if not current_user:
+        return False
+
+    # Owner always has access
+    if current_user.id == goal.user_id:
+        return True
+
+    # Check if goal is shared with the user (SHARED visibility or explicit share)
+    if goal.visibility == GoalVisibility.SHARED:
+        result = await db.execute(
+            select(GoalShare).where(
+                GoalShare.goal_id == goal.id,
+                GoalShare.shared_with_user_id == current_user.id,
+                GoalShare.status == ShareStatus.ACCEPTED
+            )
+        )
+        share = result.scalar_one_or_none()
+        if share:
+            return True
+
+    return False
 
 router = APIRouter()
 
@@ -150,10 +185,10 @@ async def get_goal(
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
 
-    # Check visibility
-    if goal.visibility != GoalVisibility.PUBLIC:
-        if not current_user or current_user.id != goal.user_id:
-            raise HTTPException(status_code=404, detail="Goal not found")
+    # Check visibility (including shared access)
+    has_access = await check_goal_access(goal, current_user, db)
+    if not has_access:
+        raise HTTPException(status_code=404, detail="Goal not found")
 
     return goal
 
@@ -171,9 +206,10 @@ async def get_goal_nodes(
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
 
-    if goal.visibility != GoalVisibility.PUBLIC:
-        if not current_user or current_user.id != goal.user_id:
-            raise HTTPException(status_code=404, detail="Goal not found")
+    # Check visibility (including shared access)
+    has_access = await check_goal_access(goal, current_user, db)
+    if not has_access:
+        raise HTTPException(status_code=404, detail="Goal not found")
 
     result = await db.execute(
         select(Node).where(Node.goal_id == goal_id).order_by(Node.order)
