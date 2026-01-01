@@ -25,7 +25,8 @@ class Update(Base):
     media_urls: Mapped[list] = mapped_column(ARRAY(String), default=list)
 
     update_type: Mapped[UpdateType] = mapped_column(
-        SQLEnum(UpdateType), default=UpdateType.PROGRESS
+        SQLEnum(UpdateType, values_callable=lambda enum: [e.value for e in enum]),
+        default=UpdateType.PROGRESS
     )
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

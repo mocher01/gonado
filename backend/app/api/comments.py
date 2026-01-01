@@ -106,7 +106,10 @@ async def get_comments_for_target(
     """Get all comments for a target with nested replies."""
     result = await db.execute(
         select(Comment)
-        .options(selectinload(Comment.user))
+        .options(
+            selectinload(Comment.user),
+            selectinload(Comment.replies).selectinload(Comment.user)
+        )
         .where(
             Comment.target_type == target_type,
             Comment.target_id == target_id

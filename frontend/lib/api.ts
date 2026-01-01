@@ -332,7 +332,7 @@ class ApiClient {
   }
 
   async getReactions(targetType: "goal" | "node" | "update", targetId: string): Promise<any> {
-    return this.fetch(`/interactions/reactions/${targetType}/${targetId}`);
+    return this.fetch(`/interactions/reactions/${targetType}/${targetId}/summary`);
   }
 
   // Comments

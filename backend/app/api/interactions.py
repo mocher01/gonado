@@ -106,6 +106,27 @@ async def delete_interaction(
     await db.delete(interaction)
 
 
+@router.delete("/reactions/{target_type}/{target_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_reaction(
+    target_type: TargetType,
+    target_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Remove user's reaction from a target."""
+    result = await db.execute(
+        select(Interaction).where(
+            Interaction.user_id == current_user.id,
+            Interaction.target_type == target_type,
+            Interaction.target_id == target_id,
+            Interaction.interaction_type == InteractionType.REACTION
+        )
+    )
+    reaction = result.scalar_one_or_none()
+    if reaction:
+        await db.delete(reaction)
+
+
 @router.get("/reactions/{target_type}/{target_id}/summary", response_model=ReactionSummary)
 async def get_reaction_summary(
     target_type: TargetType,

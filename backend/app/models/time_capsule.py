@@ -34,7 +34,10 @@ class TimeCapsule(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Trigger configuration
-    trigger_type: Mapped[CapsuleTriggerType] = mapped_column(SQLEnum(CapsuleTriggerType), nullable=False)
+    trigger_type: Mapped[CapsuleTriggerType] = mapped_column(
+        SQLEnum(CapsuleTriggerType, values_callable=lambda enum: [e.value for e in enum]),
+        nullable=False
+    )
 
     # Trigger value depends on type:
     # - milestone_reached: milestone node_id (as string)

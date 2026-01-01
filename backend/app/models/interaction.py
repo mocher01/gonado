@@ -33,11 +33,15 @@ class Interaction(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
-    target_type: Mapped[TargetType] = mapped_column(SQLEnum(TargetType), nullable=False)
+    target_type: Mapped[TargetType] = mapped_column(
+        SQLEnum(TargetType, values_callable=lambda enum: [e.value for e in enum]),
+        nullable=False
+    )
     target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
 
     interaction_type: Mapped[InteractionType] = mapped_column(
-        SQLEnum(InteractionType), nullable=False
+        SQLEnum(InteractionType, values_callable=lambda enum: [e.value for e in enum]),
+        nullable=False
     )
 
     # For comments

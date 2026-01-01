@@ -19,7 +19,10 @@ class Comment(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
-    target_type: Mapped[CommentTargetType] = mapped_column(SQLEnum(CommentTargetType), nullable=False)
+    target_type: Mapped[CommentTargetType] = mapped_column(
+        SQLEnum(CommentTargetType, values_callable=lambda enum: [e.value for e in enum]),
+        nullable=False
+    )
     target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
 
     # For threading - parent_id is nullable for top-level comments
