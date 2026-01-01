@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 
 /**
  * NodeInteractionPopup - Quick Interaction Popup for Quest Map Nodes
@@ -159,9 +160,14 @@ export function NodeInteractionPopup({
             <div className="p-4 space-y-4">
               {/* Sign in banner for anonymous users */}
               {!isAuthenticated && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
-                  <p className="text-sm text-amber-300">Sign in to interact with this node</p>
-                </div>
+                <Link
+                  href="/login"
+                  className="block p-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-center hover:from-amber-500/30 hover:to-orange-500/30 transition-all"
+                >
+                  <p className="text-sm text-amber-300 font-medium">
+                    🔐 Sign in to interact with this node →
+                  </p>
+                </Link>
               )}
 
               {/* Reactions Section */}

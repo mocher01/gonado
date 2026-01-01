@@ -230,55 +230,53 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
         {/* Social Activity Bar - clickable area for social features */}
         {(hasSocialActivity || onSocialClick) && (
           <div
-            className={`px-4 py-2 flex items-center gap-3 border-b cursor-pointer transition-colors ${
-              onSocialClick ? "hover:bg-white/5" : ""
-            }`}
+            className="px-4 py-2.5 flex items-center justify-center gap-3 cursor-pointer transition-all hover:brightness-110"
             style={{
-              borderColor: isCompleted
-                ? "rgba(34, 197, 94, 0.1)"
-                : isActive
-                ? "rgba(251, 191, 36, 0.1)"
-                : "rgba(255, 255, 255, 0.03)",
-              background: hasReactions ? "rgba(251, 191, 36, 0.03)" : "transparent",
+              background: hasSocialActivity
+                ? "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.15))"
+                : "linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1))",
+              borderBottom: "1px solid rgba(168, 85, 247, 0.2)",
             }}
             onClick={handleSocialClick}
-            title="View social activity"
+            title="Click to interact with this node"
           >
             {/* Reactions indicator with glow */}
             {hasReactions && (
               <span
-                className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
                 style={{
-                  background: "rgba(251, 191, 36, 0.15)",
-                  boxShadow: "0 0 8px rgba(251, 191, 36, 0.3)",
+                  background: "rgba(251, 191, 36, 0.2)",
+                  boxShadow: "0 0 12px rgba(251, 191, 36, 0.4)",
+                  border: "1px solid rgba(251, 191, 36, 0.3)",
                 }}
               >
-                <span className="text-amber-400">&#10084;</span>
+                <span className="text-amber-400">🔥</span>
                 <span className="text-amber-300">{socialData!.reactions_total}</span>
               </span>
             )}
 
             {/* Comments badge */}
             {hasComments && (
-              <span className="flex items-center gap-1 text-xs text-slate-400">
-                <span>&#128172;</span>
-                <span>{socialData!.comments_count}</span>
+              <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-blue-500/20 border border-blue-500/30">
+                <span>💬</span>
+                <span className="text-blue-300">{socialData!.comments_count}</span>
               </span>
             )}
 
             {/* Resources badge */}
             {hasResources && (
-              <span className="flex items-center gap-1 text-xs text-slate-400">
-                <span>&#127873;</span>
-                <span>{socialData!.resources_count}</span>
+              <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-purple-500/20 border border-purple-500/30">
+                <span>📦</span>
+                <span className="text-purple-300">{socialData!.resources_count}</span>
               </span>
             )}
 
-            {/* If no activity but click handler exists, show placeholder */}
+            {/* If no activity but click handler exists, show CTA */}
             {!hasSocialActivity && onSocialClick && (
-              <span className="text-xs text-slate-500 flex items-center gap-1">
-                <span>&#128172;</span>
-                <span>Add comment or reaction</span>
+              <span className="text-xs text-purple-300 flex items-center gap-2 font-medium">
+                <span className="animate-pulse">✨</span>
+                <span>Click to react or comment</span>
+                <span className="animate-pulse">✨</span>
               </span>
             )}
           </div>
