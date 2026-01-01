@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
@@ -18,6 +19,7 @@ import {
   SacredBoost,
   ProphecyBoard,
   NodeInteractionPopup,
+  CommentInputModal,
 } from "@/components/social";
 import type { ElementType } from "@/components/social";
 import type { Goal, Node, ChecklistItem } from "@/types";
@@ -95,6 +97,105 @@ interface Booster {
   displayName: string | null;
   avatarUrl: string | null;
   createdAt: string;
+}
+
+// ============================================
+// AUTH HEADER - User auth state indicator
+// ============================================
+
+function AuthHeader({
+  user,
+  isLoading,
+  onLogout,
+}: {
+  user: { username: string; display_name?: string | null; avatar_url?: string | null } | null;
+  isLoading: boolean;
+  onLogout: () => void;
+}) {
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm animate-pulse" />
+    );
+  }
+
+  if (!user) {
+    return (
+      <Link
+        href="/login"
+        className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+      >
+        <span>Sign In</span>
+      </Link>
+    );
+  }
+
+  const displayName = user.display_name || user.username;
+  const initial = displayName.charAt(0).toUpperCase();
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setShowDropdown(!showDropdown)}
+        className="flex items-center gap-2 px-2 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+      >
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center text-white text-sm font-bold overflow-hidden">
+          {user.avatar_url ? (
+            <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            initial
+          )}
+        </div>
+        <span className="pr-2 text-sm font-medium hidden sm:block">{displayName}</span>
+        <svg
+          className={`w-4 h-4 transition-transform ${showDropdown ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <AnimatePresence>
+        {showDropdown && (
+          <>
+            {/* Backdrop to close dropdown */}
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setShowDropdown(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute right-0 top-full mt-2 bg-slate-800/95 backdrop-blur-sm border border-white/10 rounded-xl p-2 min-w-[180px] z-50"
+            >
+              <Link
+                href="/dashboard"
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-left"
+                onClick={() => setShowDropdown(false)}
+              >
+                <span className="text-slate-400">🎯</span>
+                <span className="text-white">My Goals</span>
+              </Link>
+              <button
+                onClick={() => {
+                  setShowDropdown(false);
+                  onLogout();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-left text-red-400 hover:text-red-300"
+              >
+                <span>🚪</span>
+                <span>Logout</span>
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 // ============================================
@@ -1003,7 +1104,7 @@ function OwnerStatsPanel({
 export default function GoalDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth(false);
+  const { user, isLoading: authLoading, logout } = useAuth(false);
   const [goal, setGoal] = useState<Goal | null>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1043,6 +1144,10 @@ export default function GoalDetailPage() {
   const [nodeSocialData, setNodeSocialData] = useState<Record<string, any>>({});
   const [selectedNodeSummary, setSelectedNodeSummary] = useState<any>(null);
   const [selectedNodeUserReaction, setSelectedNodeUserReaction] = useState<string | null>(null);
+
+  // Comment modal state
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [commentModalLoading, setCommentModalLoading] = useState(false);
 
   const goalId = params.id as string;
   const isOwner = user && goal && user.id === goal.user_id;
@@ -1296,6 +1401,7 @@ export default function GoalDetailPage() {
         await api.unfollowTarget("goal", goalId);
         setIsFollowing(false);
         setFollowers((prev) => prev.filter((f) => f.id !== user.id));
+        toast.success("Unfollowed");
       } else {
         await api.followTarget("goal", goalId);
         setIsFollowing(true);
@@ -1303,9 +1409,11 @@ export default function GoalDetailPage() {
           ...prev,
           { id: user.id, username: user.username, displayName: user.display_name || null, avatarUrl: user.avatar_url || null, followedAt: new Date().toISOString() },
         ]);
+        toast.success("Following this quest!");
       }
     } catch (err) {
       console.error("Failed to toggle follow:", err);
+      toast.error("Failed to update follow status");
     }
   };
 
@@ -1316,6 +1424,7 @@ export default function GoalDetailPage() {
         await api.removeReaction("goal", goalId);
         setReactions((prev) => ({ ...prev, [reactionType]: Math.max(0, prev[reactionType] - 1) }));
         setUserReaction(null);
+        toast.success("Reaction removed!");
       } else {
         await api.addReaction("goal", goalId, reactionType);
         setReactions((prev) => {
@@ -1325,9 +1434,11 @@ export default function GoalDetailPage() {
           return updated;
         });
         setUserReaction(reactionType);
+        toast.success("Energy sent!");
       }
     } catch (err) {
       console.error("Failed to toggle reaction:", err);
+      toast.error("Failed to update reaction");
     }
   };
 
@@ -1353,8 +1464,10 @@ export default function GoalDetailPage() {
       } else {
         setComments((prev) => [newComment, ...prev]);
       }
+      toast.success("Comment added!");
     } catch (err) {
       console.error("Failed to add comment:", err);
+      toast.error("Failed to add comment");
     }
   };
 
@@ -1372,8 +1485,10 @@ export default function GoalDetailPage() {
           { id: user.id, username: user.username, displayName: user.display_name || null, avatarUrl: user.avatar_url || null, createdAt: new Date().toISOString() },
         ],
       }));
+      toast.success("Sacred Boost sent!");
     } catch (err) {
       console.error("Failed to give boost:", err);
+      toast.error("Failed to send boost");
     }
   };
 
@@ -1451,6 +1566,7 @@ export default function GoalDetailPage() {
             reactions_total: Math.max(0, prev.reactions_total - 1),
           };
         });
+        toast.success("Reaction removed!");
       } else {
         // Add/change reaction
         await api.addReaction("node", selectedNode.id, reactionType);
@@ -1470,6 +1586,7 @@ export default function GoalDetailPage() {
           };
         });
         setSelectedNodeUserReaction(reactionType);
+        toast.success("Reaction added!");
       }
 
       // Update nodeSocialData for the quest map
@@ -1483,6 +1600,7 @@ export default function GoalDetailPage() {
       }));
     } catch (err) {
       console.error("Failed to toggle node reaction:", err);
+      toast.error("Failed to update reaction");
     }
   };
 
@@ -1492,22 +1610,29 @@ export default function GoalDetailPage() {
   };
 
   const handleNodeAddComment = async () => {
-    // TODO: Open comment input modal
     if (!user || !selectedNode) return;
-    const content = prompt("Enter your comment:");
-    if (content?.trim()) {
-      try {
-        await api.addComment("node", selectedNode.id, content.trim());
-        setSelectedNodeSummary((prev: any) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            comments_count: prev.comments_count + 1,
-          };
-        });
-      } catch (err) {
-        console.error("Failed to add node comment:", err);
-      }
+    setShowCommentModal(true);
+  };
+
+  const handleCommentSubmit = async (content: string) => {
+    if (!user || !selectedNode) return;
+    setCommentModalLoading(true);
+    try {
+      await api.addComment("node", selectedNode.id, content);
+      setSelectedNodeSummary((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          comments_count: prev.comments_count + 1,
+        };
+      });
+      toast.success("Comment added!");
+    } catch (err) {
+      console.error("Failed to add node comment:", err);
+      toast.error("Failed to add comment");
+      throw err; // Re-throw so modal knows it failed
+    } finally {
+      setCommentModalLoading(false);
     }
   };
 
@@ -1601,41 +1726,47 @@ export default function GoalDetailPage() {
             </Link>
           </div>
 
-          {/* Share button (public goals only) */}
-          {isPublic && (
-            <div className="absolute top-4 right-4 z-30">
-              <button
-                onClick={() => setShowShareMenu(!showShareMenu)}
-                className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
-              >
-                <span>📤</span>
-                <span>Share</span>
-              </button>
-              <AnimatePresence>
-                {showShareMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="absolute right-0 top-full mt-2 bg-slate-800/95 backdrop-blur-sm border border-white/10 rounded-xl p-2 min-w-[200px]"
-                  >
-                    <button onClick={handleCopyLink} className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left">
-                      <span>{copied ? "✓" : "🔗"}</span>
-                      <span className="text-white">{copied ? "Copied!" : "Copy Link"}</span>
-                    </button>
-                    <button onClick={() => handleShare("twitter")} className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left">
-                      <span>🐦</span>
-                      <span className="text-white">Twitter</span>
-                    </button>
-                    <button onClick={() => handleShare("facebook")} className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left">
-                      <span>📘</span>
-                      <span className="text-white">Facebook</span>
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
+          {/* Top right: Auth header + Share button */}
+          <div className="absolute top-4 right-4 z-30 flex items-center gap-3">
+            {/* Auth header */}
+            <AuthHeader user={user} isLoading={authLoading} onLogout={logout} />
+
+            {/* Share button (public goals only) */}
+            {isPublic && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowShareMenu(!showShareMenu)}
+                  className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+                >
+                  <span>📤</span>
+                  <span>Share</span>
+                </button>
+                <AnimatePresence>
+                  {showShareMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 top-full mt-2 bg-slate-800/95 backdrop-blur-sm border border-white/10 rounded-xl p-2 min-w-[200px]"
+                    >
+                      <button onClick={handleCopyLink} className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left">
+                        <span>{copied ? "✓" : "🔗"}</span>
+                        <span className="text-white">{copied ? "Copied!" : "Copy Link"}</span>
+                      </button>
+                      <button onClick={() => handleShare("twitter")} className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left">
+                        <span>🐦</span>
+                        <span className="text-white">Twitter</span>
+                      </button>
+                      <button onClick={() => handleShare("facebook")} className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left">
+                        <span>📘</span>
+                        <span className="text-white">Facebook</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+          </div>
 
           {/* COMMUNITY PULSE - Visible social indicators for public goals */}
           {isPublic && (
@@ -1682,6 +1813,8 @@ export default function GoalDetailPage() {
               <span>←</span>
               <span>{user ? "Dashboard" : "Discover"}</span>
             </Link>
+            {/* Auth header */}
+            <AuthHeader user={user} isLoading={authLoading} onLogout={logout} />
           </div>
 
           {generating ? (
@@ -1786,6 +1919,15 @@ export default function GoalDetailPage() {
           onBoost={handleNodeBoost}
         />
       )}
+
+      {/* Comment Input Modal */}
+      <CommentInputModal
+        isOpen={showCommentModal}
+        onClose={() => setShowCommentModal(false)}
+        onSubmit={handleCommentSubmit}
+        nodeTitle={selectedNode?.title || ""}
+        isLoading={commentModalLoading}
+      />
     </div>
   );
 }

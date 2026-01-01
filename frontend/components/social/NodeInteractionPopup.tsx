@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 /**
  * NodeInteractionPopup - Quick Interaction Popup for Quest Map Nodes
@@ -65,6 +66,7 @@ export function NodeInteractionPopup({
   onBoost,
 }: NodeInteractionPopupProps) {
   const popupRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   // Close on click outside
   useEffect(() => {
@@ -161,7 +163,7 @@ export function NodeInteractionPopup({
               {/* Sign in banner for anonymous users */}
               {!isAuthenticated && (
                 <Link
-                  href="/login"
+                  href={`/login?returnUrl=${encodeURIComponent(pathname)}`}
                   className="block p-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-center hover:from-amber-500/30 hover:to-orange-500/30 transition-all"
                 >
                   <p className="text-sm text-amber-300 font-medium">

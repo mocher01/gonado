@@ -15,3 +15,6 @@ export { ProphecyBoard } from "./ProphecyBoard";
 
 // Node Interaction
 export { NodeInteractionPopup } from "./NodeInteractionPopup";
+
+// Comment Modal
+export { CommentInputModal } from "./CommentInputModal";
