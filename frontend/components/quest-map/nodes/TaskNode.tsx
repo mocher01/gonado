@@ -233,9 +233,9 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
             className="px-4 py-2.5 flex items-center justify-center gap-3 cursor-pointer transition-all hover:brightness-110"
             style={{
               background: hasSocialActivity
-                ? "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.15))"
-                : "linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1))",
-              borderBottom: "1px solid rgba(168, 85, 247, 0.2)",
+                ? "linear-gradient(135deg, rgba(20, 184, 166, 0.15), rgba(6, 182, 212, 0.15))"
+                : "linear-gradient(135deg, rgba(20, 184, 166, 0.1), rgba(6, 182, 212, 0.1))",
+              borderBottom: "1px solid rgba(20, 184, 166, 0.3)",
             }}
             onClick={handleSocialClick}
             title="Click to interact with this node"
@@ -257,23 +257,23 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
 
             {/* Comments badge */}
             {hasComments && (
-              <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-blue-500/20 border border-blue-500/30">
+              <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-cyan-500/20 border border-cyan-500/30">
                 <span>💬</span>
-                <span className="text-blue-300">{socialData!.comments_count}</span>
+                <span className="text-cyan-300">{socialData!.comments_count}</span>
               </span>
             )}
 
             {/* Resources badge */}
             {hasResources && (
-              <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-purple-500/20 border border-purple-500/30">
+              <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-teal-500/20 border border-teal-500/30">
                 <span>📦</span>
-                <span className="text-purple-300">{socialData!.resources_count}</span>
+                <span className="text-teal-300">{socialData!.resources_count}</span>
               </span>
             )}
 
             {/* If no activity but click handler exists, show CTA */}
             {!hasSocialActivity && onSocialClick && (
-              <span className="text-xs text-purple-300 flex items-center gap-2 font-medium">
+              <span className="text-xs text-teal-300 flex items-center gap-2 font-medium">
                 <span className="animate-pulse">✨</span>
                 <span>Click to react or comment</span>
                 <span className="animate-pulse">✨</span>
