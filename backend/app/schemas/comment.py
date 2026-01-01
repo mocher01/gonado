@@ -2,7 +2,13 @@ from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
 from typing import Optional, List
+from enum import Enum
 from app.models.comment import CommentTargetType
+
+
+class CommentSortOrder(str, Enum):
+    RECENT = "recent"
+    OLDEST = "oldest"
 
 
 class CommentCreate(BaseModel):
@@ -51,3 +57,12 @@ class CommentWithReplies(CommentResponse):
 
 # Required for forward reference
 CommentWithReplies.model_rebuild()
+
+
+class CommentListResponse(BaseModel):
+    """Paginated comment list response."""
+    total: int
+    comments: List[CommentWithReplies]
+    has_more: bool
+    limit: int
+    offset: int

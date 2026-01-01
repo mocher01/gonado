@@ -1,13 +1,14 @@
 from uuid import UUID
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from app.database import get_db
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_optional_user
 from app.schemas.comment import (
-    CommentCreate, CommentUpdate, CommentResponse, CommentWithReplies
+    CommentCreate, CommentUpdate, CommentResponse, CommentWithReplies,
+    CommentListResponse, CommentSortOrder
 )
 from app.models.comment import Comment, CommentTargetType
 from app.models.user import User
@@ -97,13 +98,31 @@ async def create_comment(
     return comment
 
 
-@router.get("/{target_type}/{target_id}", response_model=List[CommentWithReplies])
+@router.get("/{target_type}/{target_id}", response_model=CommentListResponse)
 async def get_comments_for_target(
     target_type: CommentTargetType,
     target_id: UUID,
+    sort: CommentSortOrder = Query(default=CommentSortOrder.RECENT, description="Sort order"),
+    limit: int = Query(default=10, ge=1, le=100, description="Number of comments to return"),
+    offset: int = Query(default=0, ge=0, description="Number of comments to skip"),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all comments for a target with nested replies."""
+    """Get paginated comments for a target with nested replies."""
+    # Get total count of root comments (not replies)
+    count_result = await db.execute(
+        select(func.count(Comment.id))
+        .where(
+            Comment.target_type == target_type,
+            Comment.target_id == target_id,
+            Comment.parent_id.is_(None)  # Only count root comments
+        )
+    )
+    total = count_result.scalar() or 0
+
+    # Determine sort order
+    order_by = Comment.created_at.desc() if sort == CommentSortOrder.RECENT else Comment.created_at.asc()
+
+    # Get root comments with pagination
     result = await db.execute(
         select(Comment)
         .options(
@@ -112,13 +131,25 @@ async def get_comments_for_target(
         )
         .where(
             Comment.target_type == target_type,
-            Comment.target_id == target_id
+            Comment.target_id == target_id,
+            Comment.parent_id.is_(None)  # Only get root comments
         )
-        .order_by(Comment.created_at.asc())
+        .order_by(order_by)
+        .offset(offset)
+        .limit(limit)
     )
     comments = result.scalars().all()
 
-    return build_comment_tree(list(comments))
+    # Build tree for the fetched comments
+    comment_list = build_comment_tree(list(comments))
+
+    return CommentListResponse(
+        total=total,
+        comments=comment_list,
+        has_more=(offset + limit) < total,
+        limit=limit,
+        offset=offset
+    )
 
 
 @router.put("/{comment_id}", response_model=CommentResponse)

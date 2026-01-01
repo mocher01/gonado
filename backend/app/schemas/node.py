@@ -80,3 +80,40 @@ class NodeWithDependenciesResponse(NodeResponse):
     """Node response including dependency information."""
     depends_on: List[DependencyResponse] = []
     dependents: List[DependencyResponse] = []
+
+
+# Social summary schemas
+class ReactionCounts(BaseModel):
+    """Counts for each reaction type."""
+    fire: int = 0
+    water: int = 0
+    nature: int = 0
+    lightning: int = 0
+    magic: int = 0
+
+
+class TopComment(BaseModel):
+    """Preview of a top comment."""
+    id: UUID
+    user_id: UUID
+    username: str
+    display_name: Optional[str]
+    content: str
+    created_at: datetime
+    reply_count: int = 0
+
+
+class NodeSocialSummary(BaseModel):
+    """Social activity summary for a single node."""
+    node_id: UUID
+    reactions: ReactionCounts
+    reactions_total: int
+    comments_count: int
+    resources_count: int
+    top_comments: List[TopComment] = []
+
+
+class GoalNodesSocialSummary(BaseModel):
+    """Batch social summary for all nodes in a goal."""
+    goal_id: UUID
+    nodes: Dict[str, NodeSocialSummary]  # node_id -> summary

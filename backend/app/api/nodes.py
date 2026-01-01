@@ -1,18 +1,23 @@
 from uuid import UUID
 from datetime import datetime
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Dict
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.api.deps import get_current_user
 from app.schemas.node import (
     NodeCreate, NodeUpdate, NodeResponse, NodeStatusUpdate,
-    DependencyCreate, DependencyResponse, NodeWithDependenciesResponse
+    DependencyCreate, DependencyResponse, NodeWithDependenciesResponse,
+    NodeSocialSummary, GoalNodesSocialSummary, ReactionCounts, TopComment
 )
 from app.models.node import Node, NodeStatus, NodeDependency
 from app.models.goal import Goal
 from app.models.user import User
+from app.models.interaction import Interaction, TargetType, InteractionType
+from app.models.comment import Comment, CommentTargetType
+from app.models.resource_drop import ResourceDrop
 from app.services.gamification import gamification_service, XP_REWARDS
 from app.services.notifications import notification_service
 
@@ -420,3 +425,135 @@ async def get_goal_flow(
         })
 
     return response
+
+
+# === Social Summary Endpoints ===
+
+async def _get_node_social_summary(
+    db: AsyncSession,
+    node_id: UUID,
+    include_top_comments: bool = True,
+    top_comments_limit: int = 3
+) -> NodeSocialSummary:
+    """Helper function to get social summary for a single node."""
+    # Get reaction counts
+    reactions_result = await db.execute(
+        select(
+            Interaction.reaction_type,
+            func.count(Interaction.id).label("count")
+        )
+        .where(
+            Interaction.target_type == TargetType.NODE,
+            Interaction.target_id == node_id,
+            Interaction.interaction_type == InteractionType.REACTION
+        )
+        .group_by(Interaction.reaction_type)
+    )
+    reaction_rows = reactions_result.all()
+
+    reaction_counts = ReactionCounts()
+    reactions_total = 0
+    for row in reaction_rows:
+        reaction_type, count = row
+        if reaction_type and hasattr(reaction_counts, reaction_type):
+            setattr(reaction_counts, reaction_type, count)
+            reactions_total += count
+
+    # Get comments count
+    comments_result = await db.execute(
+        select(func.count(Comment.id))
+        .where(
+            Comment.target_type == CommentTargetType.NODE,
+            Comment.target_id == node_id
+        )
+    )
+    comments_count = comments_result.scalar() or 0
+
+    # Get resources count
+    resources_result = await db.execute(
+        select(func.count(ResourceDrop.id))
+        .where(ResourceDrop.node_id == node_id)
+    )
+    resources_count = resources_result.scalar() or 0
+
+    # Get top comments (most recent root comments with reply counts)
+    top_comments = []
+    if include_top_comments and comments_count > 0:
+        comments_query = await db.execute(
+            select(Comment)
+            .options(selectinload(Comment.user))
+            .where(
+                Comment.target_type == CommentTargetType.NODE,
+                Comment.target_id == node_id,
+                Comment.parent_id.is_(None)  # Root comments only
+            )
+            .order_by(Comment.created_at.desc())
+            .limit(top_comments_limit)
+        )
+        comments = comments_query.scalars().all()
+
+        for comment in comments:
+            # Count replies
+            reply_count_result = await db.execute(
+                select(func.count(Comment.id))
+                .where(Comment.parent_id == comment.id)
+            )
+            reply_count = reply_count_result.scalar() or 0
+
+            top_comments.append(TopComment(
+                id=comment.id,
+                user_id=comment.user_id,
+                username=comment.user.username,
+                display_name=comment.user.display_name,
+                content=comment.content[:200],  # Truncate for preview
+                created_at=comment.created_at,
+                reply_count=reply_count
+            ))
+
+    return NodeSocialSummary(
+        node_id=node_id,
+        reactions=reaction_counts,
+        reactions_total=reactions_total,
+        comments_count=comments_count,
+        resources_count=resources_count,
+        top_comments=top_comments
+    )
+
+
+@router.get("/{node_id}/social-summary", response_model=NodeSocialSummary)
+async def get_node_social_summary(
+    node_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get social activity summary for a single node."""
+    # Verify node exists
+    result = await db.execute(select(Node).where(Node.id == node_id))
+    node = result.scalar_one_or_none()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+
+    return await _get_node_social_summary(db, node_id)
+
+
+@router.get("/goal/{goal_id}/social-summary", response_model=GoalNodesSocialSummary)
+async def get_goal_nodes_social_summary(
+    goal_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get social activity summary for all nodes in a goal (batch endpoint)."""
+    # Get all nodes for the goal
+    result = await db.execute(
+        select(Node.id).where(Node.goal_id == goal_id)
+    )
+    node_ids = [row[0] for row in result.all()]
+
+    if not node_ids:
+        return GoalNodesSocialSummary(goal_id=goal_id, nodes={})
+
+    # Get summaries for all nodes (without top comments for batch, to save queries)
+    nodes_summary: Dict[str, NodeSocialSummary] = {}
+    for node_id in node_ids:
+        summary = await _get_node_social_summary(db, node_id, include_top_comments=False)
+        nodes_summary[str(node_id)] = summary
+
+    return GoalNodesSocialSummary(goal_id=goal_id, nodes=nodes_summary)
