@@ -25,6 +25,7 @@ interface FellowTravelersProps {
   onFollow?: () => void;
   onViewAll?: () => void;
   isFollowing?: boolean;
+  showJoinButton?: boolean;
 }
 
 export function FellowTravelers({
@@ -33,6 +34,7 @@ export function FellowTravelers({
   onFollow,
   onViewAll,
   isFollowing = false,
+  showJoinButton = true,
 }: FellowTravelersProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   const displayedTravelers = travelers.slice(0, maxDisplay);
@@ -97,8 +99,8 @@ export function FellowTravelers({
           </span>
         </div>
 
-        {/* Join button */}
-        {onFollow && !isFollowing && (
+        {/* Join button (only shown if showJoinButton is true) */}
+        {showJoinButton && onFollow && !isFollowing && (
           <motion.button
             onClick={onFollow}
             className="ml-3 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-medium hover:bg-emerald-500/30 transition-colors"
@@ -109,7 +111,7 @@ export function FellowTravelers({
           </motion.button>
         )}
 
-        {isFollowing && (
+        {showJoinButton && isFollowing && (
           <span className="ml-3 px-3 py-1.5 rounded-lg bg-slate-700/50 text-slate-400 text-xs font-medium flex items-center gap-1">
             <span>✓</span>
             <span>Traveling with</span>

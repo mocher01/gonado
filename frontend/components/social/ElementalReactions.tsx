@@ -186,17 +186,99 @@ export function ElementalReactions({
 }
 
 /**
- * Compact inline version for node cards
+ * Compact inline version for node cards or inline displays
+ * Can be read-only (onClick) or interactive (onReact)
  */
 export function ElementalReactionsInline({
   reactions,
   onClick,
+  userReaction,
+  onReact,
+  disabled = false,
 }: {
   reactions: ReactionCounts;
   onClick?: () => void;
+  userReaction?: ElementType | null;
+  onReact?: (element: ElementType) => void;
+  disabled?: boolean;
 }) {
+  const [showPicker, setShowPicker] = useState(false);
   const totalReactions = Object.values(reactions).reduce((a, b) => a + b, 0);
 
+  // Interactive mode - show a small reaction picker
+  if (onReact && !onClick) {
+    const handleReact = (el: ElementType) => {
+      onReact(el);
+      setShowPicker(false);
+    };
+
+    return (
+      <div className="relative flex items-center gap-1">
+        {/* Current user reaction or picker trigger */}
+        <button
+          onClick={() => !disabled && setShowPicker(!showPicker)}
+          disabled={disabled}
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-colors ${
+            disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-white/10"
+          }`}
+        >
+          {userReaction ? (
+            <span className="text-lg">
+              {ELEMENTS.find(e => e.type === userReaction)?.emoji}
+            </span>
+          ) : (
+            <span className="text-slate-400 text-sm">React ✨</span>
+          )}
+        </button>
+
+        {/* Reaction counts */}
+        {totalReactions > 0 && (
+          <div className="flex items-center gap-0.5">
+            {ELEMENTS.filter(el => reactions[el.type] > 0)
+              .sort((a, b) => reactions[b.type] - reactions[a.type])
+              .slice(0, 3)
+              .map(el => (
+                <span key={el.type} className="text-xs">
+                  {el.emoji}{reactions[el.type]}
+                </span>
+              ))
+            }
+          </div>
+        )}
+
+        {/* Picker dropdown */}
+        <AnimatePresence>
+          {showPicker && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.9 }}
+              className="absolute bottom-full left-0 mb-2 flex gap-1 p-1.5 rounded-xl bg-slate-800 border border-white/10 shadow-xl z-50"
+            >
+              {ELEMENTS.map(el => (
+                <motion.button
+                  key={el.type}
+                  onClick={() => handleReact(el.type)}
+                  whileHover={{ scale: 1.2 }}
+                  whileTap={{ scale: 0.9 }}
+                  className={`text-xl p-1 rounded-lg transition-colors ${
+                    userReaction === el.type
+                      ? "bg-white/20"
+                      : "hover:bg-white/10"
+                  }`}
+                  title={el.label}
+                >
+                  {el.emoji}
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // Read-only mode with onClick
   if (totalReactions === 0) {
     return (
       <button

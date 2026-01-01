@@ -92,6 +92,13 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-4">
           <StreakCounter days={user.streak_days} />
+          <Link
+            href="/discover"
+            className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-colors flex items-center gap-2"
+          >
+            <span>🌍</span>
+            <span>Discover</span>
+          </Link>
           <Button variant="ghost" onClick={logout}>
             Sign Out
           </Button>
@@ -162,11 +169,16 @@ export default function DashboardPage() {
               No goals yet
             </h3>
             <p className="text-gray-400 mb-6">
-              Start your journey by creating your first goal
+              Start your journey by creating your first goal, or discover what others are working on!
             </p>
-            <Button onClick={() => router.push("/goals/new")}>
-              Create Your First Goal
-            </Button>
+            <div className="flex items-center justify-center gap-4">
+              <Button onClick={() => router.push("/goals/new")}>
+                Create Your First Goal
+              </Button>
+              <Button variant="secondary" onClick={() => router.push("/discover")}>
+                🌍 Discover Quests
+              </Button>
+            </div>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

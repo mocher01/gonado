@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/Card";
 import type { Goal } from "@/types";
 
 export default function DiscoverPage() {
+  const { user, isAuthenticated, logout } = useAuth(false); // Don't require auth
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,15 +54,31 @@ export default function DiscoverPage() {
             <Link href="/discover" className="text-white font-medium">
               Discover
             </Link>
-            <Link href="/login" className="text-gray-400 hover:text-white transition-colors">
-              Sign In
-            </Link>
-            <Link
-              href="/register"
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary-500 to-accent-500 text-white font-medium hover:shadow-lg hover:shadow-primary-500/25 transition-all"
-            >
-              Get Started
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link href="/dashboard" className="text-gray-400 hover:text-white transition-colors">
+                  My Dashboard
+                </Link>
+                <button
+                  onClick={logout}
+                  className="px-4 py-2 rounded-lg bg-white/10 text-white font-medium hover:bg-white/20 transition-all"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="text-gray-400 hover:text-white transition-colors">
+                  Sign In
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary-500 to-accent-500 text-white font-medium hover:shadow-lg hover:shadow-primary-500/25 transition-all"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
