@@ -17,6 +17,7 @@ import {
   QuestChronicle,
   SacredBoost,
   ProphecyBoard,
+  NodeInteractionPopup,
 } from "@/components/social";
 import type { ElementType } from "@/components/social";
 import type { Goal, Node, ChecklistItem } from "@/types";
@@ -1035,6 +1036,14 @@ export default function GoalDetailPage() {
   const [showVisitorPanel, setShowVisitorPanel] = useState(false);
   const [showOwnerPanel, setShowOwnerPanel] = useState(false);
 
+  // Node interaction popup state
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [nodePopupPosition, setNodePopupPosition] = useState({ x: 0, y: 0 });
+  const [showNodePopup, setShowNodePopup] = useState(false);
+  const [nodeSocialData, setNodeSocialData] = useState<Record<string, any>>({});
+  const [selectedNodeSummary, setSelectedNodeSummary] = useState<any>(null);
+  const [selectedNodeUserReaction, setSelectedNodeUserReaction] = useState<string | null>(null);
+
   const goalId = params.id as string;
   const isOwner = user && goal && user.id === goal.user_id;
   const isPublic = goal?.visibility === "public";
@@ -1071,6 +1080,7 @@ export default function GoalDetailPage() {
         activityData,
         propheciesData,
         boostsData,
+        nodesSocialData,
       ] = await Promise.all([
         api.getGoalFollowers(goalId).catch(() => ({ followers: [], total: 0 })),
         api.getReactions("goal", goalId).catch(() => ({ counts: {}, user_reaction: null })),
@@ -1078,7 +1088,11 @@ export default function GoalDetailPage() {
         api.getGoalActivity(goalId).catch(() => ({ activities: [] })),
         api.getProphecyBoard(goalId).catch(() => ({ prophecies: [] })),
         api.getGoalBoosts(goalId).catch(() => ({ boosts: [], total: 0 })),
+        api.getGoalNodesSocialSummary(goalId).catch(() => ({ nodes: {} })),
       ]);
+
+      // Set node social data for the quest map
+      setNodeSocialData(nodesSocialData.nodes || {});
 
       setFollowers(
         (followersData.followers || []).map((f: any) => ({
@@ -1383,6 +1397,130 @@ export default function GoalDetailPage() {
     }
   };
 
+  // Node interaction handlers
+  const handleNodeClick = async (node: Node, position: { x: number; y: number }) => {
+    setSelectedNode(node);
+    setNodePopupPosition(position);
+    setShowNodePopup(true);
+    setSelectedNodeSummary(null);
+    setSelectedNodeUserReaction(null);
+
+    // Fetch detailed summary for this node
+    try {
+      const summary = await api.getNodeSocialSummary(node.id);
+      setSelectedNodeSummary({
+        reactions: summary.reaction_counts || { fire: 0, water: 0, nature: 0, lightning: 0, magic: 0 },
+        reactions_total: summary.total_reactions || 0,
+        comments_count: summary.comment_count || 0,
+        resources_count: 0, // TODO: Add resources count to API
+        top_comments: (summary.recent_reactors || []).map((r: any) => ({
+          id: r.id,
+          username: r.username,
+          content: "",
+          reply_count: 0,
+        })),
+      });
+      setSelectedNodeUserReaction(summary.user_reaction || null);
+    } catch (err) {
+      console.error("Failed to load node social summary:", err);
+      // Set empty summary on error
+      setSelectedNodeSummary({
+        reactions: { fire: 0, water: 0, nature: 0, lightning: 0, magic: 0 },
+        reactions_total: 0,
+        comments_count: 0,
+        resources_count: 0,
+        top_comments: [],
+      });
+    }
+  };
+
+  const handleNodeReaction = async (reactionType: string) => {
+    if (!user || !selectedNode) return;
+    try {
+      if (selectedNodeUserReaction === reactionType) {
+        // Remove reaction
+        await api.removeReaction("node", selectedNode.id);
+        setSelectedNodeUserReaction(null);
+        setSelectedNodeSummary((prev: any) => {
+          if (!prev) return prev;
+          const newReactions = { ...prev.reactions };
+          newReactions[reactionType] = Math.max(0, newReactions[reactionType] - 1);
+          return {
+            ...prev,
+            reactions: newReactions,
+            reactions_total: Math.max(0, prev.reactions_total - 1),
+          };
+        });
+      } else {
+        // Add/change reaction
+        await api.addReaction("node", selectedNode.id, reactionType);
+        setSelectedNodeSummary((prev: any) => {
+          if (!prev) return prev;
+          const newReactions = { ...prev.reactions };
+          // Decrement previous reaction if exists
+          if (selectedNodeUserReaction) {
+            newReactions[selectedNodeUserReaction] = Math.max(0, newReactions[selectedNodeUserReaction] - 1);
+          }
+          // Increment new reaction
+          newReactions[reactionType] = (newReactions[reactionType] || 0) + 1;
+          return {
+            ...prev,
+            reactions: newReactions,
+            reactions_total: selectedNodeUserReaction ? prev.reactions_total : prev.reactions_total + 1,
+          };
+        });
+        setSelectedNodeUserReaction(reactionType);
+      }
+
+      // Update nodeSocialData for the quest map
+      setNodeSocialData((prev) => ({
+        ...prev,
+        [selectedNode.id]: {
+          ...prev[selectedNode.id],
+          reaction_counts: selectedNodeSummary?.reactions,
+          total_reactions: selectedNodeSummary?.reactions_total,
+        },
+      }));
+    } catch (err) {
+      console.error("Failed to toggle node reaction:", err);
+    }
+  };
+
+  const handleNodeViewAllComments = () => {
+    // TODO: Open full comments panel/modal for the node
+    console.log("View all comments for node:", selectedNode?.id);
+  };
+
+  const handleNodeAddComment = async () => {
+    // TODO: Open comment input modal
+    if (!user || !selectedNode) return;
+    const content = prompt("Enter your comment:");
+    if (content?.trim()) {
+      try {
+        await api.addComment("node", selectedNode.id, content.trim());
+        setSelectedNodeSummary((prev: any) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            comments_count: prev.comments_count + 1,
+          };
+        });
+      } catch (err) {
+        console.error("Failed to add node comment:", err);
+      }
+    }
+  };
+
+  const handleNodeDropResource = async () => {
+    // TODO: Open resource drop modal
+    console.log("Drop resource for node:", selectedNode?.id);
+  };
+
+  const handleNodeBoost = async () => {
+    // TODO: Implement node-level boost
+    console.log("Boost node:", selectedNode?.id);
+  };
+
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/goals/${goalId}` : "";
 
   const handleCopyLink = async () => {
@@ -1448,6 +1586,8 @@ export default function GoalDetailPage() {
             onChecklistToggle={isOwner ? handleChecklistToggle : undefined}
             onNodePositionChange={isOwner ? handleNodePositionChange : undefined}
             onNodeEdit={isOwner ? handleNodeEdit : undefined}
+            onNodeSocialClick={isPublic ? handleNodeClick : undefined}
+            nodeSocialData={nodeSocialData}
           />
 
           {/* Top bar overlays */}
@@ -1619,6 +1759,33 @@ export default function GoalDetailPage() {
         }}
         onSave={handleNodeSave}
       />
+
+      {/* Node Interaction Popup */}
+      {selectedNode && (
+        <NodeInteractionPopup
+          node={{
+            id: selectedNode.id,
+            title: selectedNode.title,
+            status: selectedNode.status,
+            description: selectedNode.description ?? undefined,
+          }}
+          isOpen={showNodePopup}
+          onClose={() => {
+            setShowNodePopup(false);
+            setSelectedNode(null);
+          }}
+          position={nodePopupPosition}
+          isOwner={!!isOwner}
+          isAuthenticated={!!user}
+          socialSummary={selectedNodeSummary}
+          userReaction={selectedNodeUserReaction}
+          onReact={handleNodeReaction}
+          onViewAllComments={handleNodeViewAllComments}
+          onAddComment={handleNodeAddComment}
+          onDropResource={handleNodeDropResource}
+          onBoost={handleNodeBoost}
+        />
+      )}
     </div>
   );
 }

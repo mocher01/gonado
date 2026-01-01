@@ -432,6 +432,33 @@ class ApiClient {
   async getUserReputation(userId: string): Promise<any> {
     return this.fetch(`/user-stats/${userId}/reputation`);
   }
+
+  // Node Social Summaries
+  async getNodeSocialSummary(nodeId: string): Promise<{
+    reaction_counts: { fire: number; water: number; nature: number; lightning: number; magic: number };
+    total_reactions: number;
+    comment_count: number;
+    user_reaction: string | null;
+    recent_reactors: Array<{
+      id: string;
+      username: string;
+      display_name: string | null;
+      avatar_url: string | null;
+      reaction_type: string;
+    }>;
+  }> {
+    return this.fetch(`/nodes/${nodeId}/social-summary`);
+  }
+
+  async getGoalNodesSocialSummary(goalId: string): Promise<{
+    nodes: Record<string, {
+      reaction_counts: { fire: number; water: number; nature: number; lightning: number; magic: number };
+      total_reactions: number;
+      comment_count: number;
+    }>;
+  }> {
+    return this.fetch(`/nodes/goal/${goalId}/social-summary`);
+  }
 }
 
 export const api = new ApiClient();

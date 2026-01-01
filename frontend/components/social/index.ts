@@ -12,3 +12,6 @@ export { QuestChronicle, QuestChronicleCompact } from "./QuestChronicle";
 export { SacredBoost, SacredBoostBadge } from "./SacredBoost";
 
 export { ProphecyBoard } from "./ProphecyBoard";
+
+// Node Interaction
+export { NodeInteractionPopup } from "./NodeInteractionPopup";

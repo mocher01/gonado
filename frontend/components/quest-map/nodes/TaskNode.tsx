@@ -22,7 +22,14 @@ interface ChecklistItem {
   completed: boolean;
 }
 
+interface NodeSocialSummary {
+  reactions_total: number;
+  comments_count: number;
+  resources_count: number;
+}
+
 interface TaskNodeData {
+  nodeId: string;
   title: string;
   description: string | null;
   status: "locked" | "active" | "completed" | "failed";
@@ -34,6 +41,8 @@ interface TaskNodeData {
   onComplete?: () => void;
   onChecklistToggle?: (itemId: string, completed: boolean) => void;
   onEdit?: () => void;
+  onSocialClick?: (screenPosition: { x: number; y: number }) => void;
+  socialData?: NodeSocialSummary;
   themeColors: {
     nodeActive: string;
     nodeCompleted: string;
@@ -85,7 +94,7 @@ function parseDescription(desc: string | null): string[] {
 }
 
 function TaskNodeComponent({ data, selected }: TaskNodeProps) {
-  const { title, description, status, order, onComplete, onChecklistToggle, onEdit, themeColors, extra_data } = data;
+  const { title, description, status, order, onComplete, onChecklistToggle, onEdit, onSocialClick, socialData, themeColors, extra_data } = data;
 
   const isCompleted = status === "completed";
   const isActive = status === "active";
@@ -99,6 +108,26 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
   // Status icons
   const statusIcon = isCompleted ? "✓" : isActive ? "●" : "○";
   const statusText = isCompleted ? "Done" : isActive ? "Current" : "Locked";
+
+  // Social activity indicators
+  const hasComments = socialData && socialData.comments_count > 0;
+  const hasReactions = socialData && socialData.reactions_total > 0;
+  const hasResources = socialData && socialData.resources_count > 0;
+  const hasSocialActivity = hasComments || hasReactions || hasResources;
+
+  // Handle social click - calculate screen position from click event
+  const handleSocialClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onSocialClick) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      // Position popup to the right of the social bar
+      const screenPosition = {
+        x: rect.right + 10,
+        y: rect.top,
+      };
+      onSocialClick(screenPosition);
+    }
+  };
 
   return (
     <div className="relative">
@@ -197,6 +226,63 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
             )}
           </div>
         </div>
+
+        {/* Social Activity Bar - clickable area for social features */}
+        {(hasSocialActivity || onSocialClick) && (
+          <div
+            className={`px-4 py-2 flex items-center gap-3 border-b cursor-pointer transition-colors ${
+              onSocialClick ? "hover:bg-white/5" : ""
+            }`}
+            style={{
+              borderColor: isCompleted
+                ? "rgba(34, 197, 94, 0.1)"
+                : isActive
+                ? "rgba(251, 191, 36, 0.1)"
+                : "rgba(255, 255, 255, 0.03)",
+              background: hasReactions ? "rgba(251, 191, 36, 0.03)" : "transparent",
+            }}
+            onClick={handleSocialClick}
+            title="View social activity"
+          >
+            {/* Reactions indicator with glow */}
+            {hasReactions && (
+              <span
+                className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+                style={{
+                  background: "rgba(251, 191, 36, 0.15)",
+                  boxShadow: "0 0 8px rgba(251, 191, 36, 0.3)",
+                }}
+              >
+                <span className="text-amber-400">&#10084;</span>
+                <span className="text-amber-300">{socialData!.reactions_total}</span>
+              </span>
+            )}
+
+            {/* Comments badge */}
+            {hasComments && (
+              <span className="flex items-center gap-1 text-xs text-slate-400">
+                <span>&#128172;</span>
+                <span>{socialData!.comments_count}</span>
+              </span>
+            )}
+
+            {/* Resources badge */}
+            {hasResources && (
+              <span className="flex items-center gap-1 text-xs text-slate-400">
+                <span>&#127873;</span>
+                <span>{socialData!.resources_count}</span>
+              </span>
+            )}
+
+            {/* If no activity but click handler exists, show placeholder */}
+            {!hasSocialActivity && onSocialClick && (
+              <span className="text-xs text-slate-500 flex items-center gap-1">
+                <span>&#128172;</span>
+                <span>Add comment or reaction</span>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Content */}
         <div className="px-4 py-4">

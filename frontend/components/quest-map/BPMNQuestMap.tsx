@@ -42,15 +42,24 @@ import { GatewayNode } from "./nodes/GatewayNode";
 import { MilestoneNode } from "./nodes/MilestoneNode";
 import { QuestEdge } from "./edges/QuestEdge";
 
+// Social data summary for a node
+interface NodeSocialSummary {
+  reactions_total: number;
+  comments_count: number;
+  resources_count: number;
+}
+
 interface BPMNQuestMapProps {
   nodes: Node[];
   worldTheme: string;
   goalTitle: string;
   onNodeClick?: (node: Node) => void;
+  onNodeSocialClick?: (node: Node, screenPosition: { x: number; y: number }) => void;
   onCompleteNode?: (nodeId: string) => void;
   onChecklistToggle?: (nodeId: string, itemId: string, completed: boolean) => void;
   onNodePositionChange?: (nodeId: string, x: number, y: number) => void;
   onNodeEdit?: (nodeId: string) => void;
+  nodeSocialData?: Record<string, NodeSocialSummary>;
 }
 
 const THEME_CONFIGS: Record<
@@ -156,6 +165,8 @@ function BPMNQuestMapInner({
   onChecklistToggle,
   onNodePositionChange,
   onNodeEdit,
+  onNodeSocialClick,
+  nodeSocialData,
   theme,
 }: BPMNQuestMapProps & { theme: typeof THEME_CONFIGS.mountain }) {
   // Import React Flow hooks dynamically
@@ -296,6 +307,7 @@ function BPMNQuestMapInner({
               parallelNode.node_type === "milestone" ? "milestone" : "task",
             position: { x: xPosition, y: yPos },
             data: {
+              nodeId: parallelNode.id,
               title: parallelNode.title,
               description: parallelNode.description,
               status: parallelNode.status,
@@ -311,6 +323,10 @@ function BPMNQuestMapInner({
               onEdit: onNodeEdit
                 ? () => onNodeEdit(parallelNode.id)
                 : undefined,
+              onSocialClick: onNodeSocialClick
+                ? (screenPosition: { x: number; y: number }) => onNodeSocialClick(parallelNode, screenPosition)
+                : undefined,
+              socialData: nodeSocialData?.[parallelNode.id],
               themeColors: {
                 nodeActive: theme.nodeActive,
                 nodeCompleted: theme.nodeCompleted,
@@ -387,6 +403,7 @@ function BPMNQuestMapInner({
           type: node.node_type === "milestone" ? "milestone" : "task",
           position: { x: xPosition, y: yPos },
           data: {
+            nodeId: node.id,
             title: node.title,
             description: node.description,
             status: node.status,
@@ -402,6 +419,10 @@ function BPMNQuestMapInner({
             onEdit: onNodeEdit
               ? () => onNodeEdit(node.id)
               : undefined,
+            onSocialClick: onNodeSocialClick
+              ? (screenPosition: { x: number; y: number }) => onNodeSocialClick(node, screenPosition)
+              : undefined,
+            socialData: nodeSocialData?.[node.id],
             themeColors: {
               nodeActive: theme.nodeActive,
               nodeCompleted: theme.nodeCompleted,
@@ -476,7 +497,7 @@ function BPMNQuestMapInner({
     }
 
     return { flowNodes: nodes, flowEdges: edges };
-  }, [sortedNodes, theme, onCompleteNode, onChecklistToggle, onNodeEdit]);
+  }, [sortedNodes, theme, onCompleteNode, onChecklistToggle, onNodeEdit, onNodeSocialClick, nodeSocialData]);
 
   // State for draggable nodes
   const [draggableNodes, setDraggableNodes] = useState(flowNodes);
