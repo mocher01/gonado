@@ -20,6 +20,7 @@ import {
   ProphecyBoard,
   NodeInteractionPopup,
   CommentInputModal,
+  NodeCommentsPanel,
 } from "@/components/social";
 import type { ElementType } from "@/components/social";
 import type { Goal, Node, ChecklistItem } from "@/types";
@@ -100,7 +101,8 @@ interface Booster {
 }
 
 // ============================================
-// AUTH HEADER - User auth state indicator
+// AUTH HEADER - Mystic Cartographer Style
+// User auth state indicator with adventure theme
 // ============================================
 
 function AuthHeader({
@@ -114,9 +116,40 @@ function AuthHeader({
 }) {
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // Compass icon SVG for decoration
+  const CompassIcon = () => (
+    <svg
+      className="w-4 h-4 text-amber-400"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <circle cx="12" cy="12" r="10" strokeOpacity="0.5" />
+      <polygon
+        points="12,2 14,10 12,12 10,10"
+        fill="currentColor"
+        stroke="none"
+      />
+      <polygon
+        points="12,22 10,14 12,12 14,14"
+        fill="currentColor"
+        fillOpacity="0.4"
+        stroke="none"
+      />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+    </svg>
+  );
+
   if (isLoading) {
     return (
-      <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm animate-pulse" />
+      <div className="relative">
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-md border border-amber-500/20 animate-pulse flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500/20 to-amber-600/20 animate-pulse" />
+        </div>
+        {/* Decorative ring animation */}
+        <div className="absolute inset-0 rounded-full border border-amber-400/30 animate-ping" style={{ animationDuration: '2s' }} />
+      </div>
     );
   }
 
@@ -124,9 +157,33 @@ function AuthHeader({
     return (
       <Link
         href="/login"
-        className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+        className="group relative flex items-center gap-2.5 px-5 py-2.5 rounded-full overflow-hidden transition-all duration-300 hover:scale-105"
       >
-        <span>Sign In</span>
+        {/* Glass background with gradient */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-800/70 to-slate-900/80 backdrop-blur-md border border-amber-500/30 rounded-full" />
+
+        {/* Animated amber glow on hover */}
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/20 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full" />
+
+        {/* Compass decoration */}
+        <span className="relative z-10 group-hover:rotate-45 transition-transform duration-500">
+          <CompassIcon />
+        </span>
+
+        {/* Text with amber gradient */}
+        <span className="relative z-10 font-medium bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent group-hover:from-amber-100 group-hover:via-amber-300 group-hover:to-amber-100 transition-all duration-300">
+          Begin Journey
+        </span>
+
+        {/* Decorative arrow */}
+        <svg
+          className="relative z-10 w-4 h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform duration-300"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
       </Link>
     );
   }
@@ -136,27 +193,55 @@ function AuthHeader({
 
   return (
     <div className="relative">
-      <button
+      <motion.button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="flex items-center gap-2 px-2 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+        className="group relative flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-full overflow-hidden transition-all duration-300"
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
       >
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center text-white text-sm font-bold overflow-hidden">
-          {user.avatar_url ? (
-            <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
-          ) : (
-            initial
-          )}
+        {/* Glass background */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-800/70 to-slate-900/80 backdrop-blur-md border border-teal-500/20 group-hover:border-amber-500/40 rounded-full transition-colors duration-300" />
+
+        {/* Subtle glow on hover */}
+        <div className="absolute inset-0 bg-gradient-to-r from-teal-500/0 via-teal-500/10 to-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full" />
+
+        {/* Avatar with gradient ring */}
+        <div className="relative">
+          {/* Outer gradient ring */}
+          <div className="absolute -inset-0.5 bg-gradient-to-br from-amber-400 via-teal-400 to-amber-500 rounded-full opacity-75 group-hover:opacity-100 transition-opacity duration-300" />
+
+          {/* Inner ring spacer */}
+          <div className="absolute inset-0 bg-slate-900 rounded-full" style={{ margin: '1px' }} />
+
+          {/* Avatar container */}
+          <div className="relative w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 via-teal-600 to-cyan-700 flex items-center justify-center text-white text-sm font-bold overflow-hidden shadow-lg shadow-teal-500/20">
+            {user.avatar_url ? (
+              <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="bg-gradient-to-br from-white to-amber-200 bg-clip-text text-transparent">
+                {initial}
+              </span>
+            )}
+          </div>
         </div>
-        <span className="pr-2 text-sm font-medium hidden sm:block">{displayName}</span>
+
+        {/* Username with amber highlight */}
+        <span className="relative z-10 pr-1 text-sm font-medium hidden sm:block">
+          <span className="bg-gradient-to-r from-slate-100 via-amber-200 to-slate-100 bg-clip-text text-transparent">
+            {displayName}
+          </span>
+        </span>
+
+        {/* Dropdown chevron */}
         <svg
-          className={`w-4 h-4 transition-transform ${showDropdown ? "rotate-180" : ""}`}
+          className={`relative z-10 w-4 h-4 text-amber-400/70 transition-transform duration-300 ${showDropdown ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
-      </button>
+      </motion.button>
 
       <AnimatePresence>
         {showDropdown && (
@@ -167,29 +252,60 @@ function AuthHeader({
               onClick={() => setShowDropdown(false)}
             />
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute right-0 top-full mt-2 bg-slate-800/95 backdrop-blur-sm border border-white/10 rounded-xl p-2 min-w-[180px] z-50"
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="absolute right-0 top-full mt-2 min-w-[200px] z-50 overflow-hidden"
             >
-              <Link
-                href="/dashboard"
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-left"
-                onClick={() => setShowDropdown(false)}
-              >
-                <span className="text-slate-400">🎯</span>
-                <span className="text-white">My Goals</span>
-              </Link>
-              <button
-                onClick={() => {
-                  setShowDropdown(false);
-                  onLogout();
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/10 transition-colors text-left text-red-400 hover:text-red-300"
-              >
-                <span>🚪</span>
-                <span>Logout</span>
-              </button>
+              {/* Glass panel with midnight blue gradient */}
+              <div className="relative bg-gradient-to-b from-slate-800/95 via-slate-900/95 to-slate-950/95 backdrop-blur-xl border border-teal-500/20 rounded-xl shadow-2xl shadow-slate-950/50">
+                {/* Decorative top border gradient */}
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400/50 to-transparent" />
+
+                {/* Menu content */}
+                <div className="p-2">
+                  {/* Compass header decoration */}
+                  <div className="flex items-center gap-2 px-3 py-2 mb-1">
+                    <CompassIcon />
+                    <span className="text-xs font-medium text-amber-400/60 uppercase tracking-wider">Navigator</span>
+                  </div>
+
+                  <Link
+                    href="/dashboard"
+                    className="group w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-gradient-to-r hover:from-teal-500/10 hover:to-cyan-500/10 transition-all duration-200"
+                    onClick={() => setShowDropdown(false)}
+                  >
+                    <span className="text-teal-400 group-hover:scale-110 transition-transform duration-200">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <span className="text-slate-200 group-hover:text-white transition-colors">My Quests</span>
+                  </Link>
+
+                  {/* Divider */}
+                  <div className="my-1.5 mx-3 h-px bg-gradient-to-r from-transparent via-slate-600/50 to-transparent" />
+
+                  <button
+                    onClick={() => {
+                      setShowDropdown(false);
+                      onLogout();
+                    }}
+                    className="group w-full flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-gradient-to-r hover:from-red-500/10 hover:to-orange-500/10 transition-all duration-200"
+                  >
+                    <span className="text-slate-400 group-hover:text-red-400 group-hover:scale-110 transition-all duration-200">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <span className="text-slate-400 group-hover:text-red-300 transition-colors">Leave Camp</span>
+                  </button>
+                </div>
+
+                {/* Decorative bottom border gradient */}
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-500/30 to-transparent" />
+              </div>
             </motion.div>
           </>
         )}
@@ -1149,6 +1265,12 @@ export default function GoalDetailPage() {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [commentModalLoading, setCommentModalLoading] = useState(false);
 
+  // Comments panel state (for viewing all comments on a node)
+  const [showCommentsPanel, setShowCommentsPanel] = useState(false);
+  const [commentsPanelNodeId, setCommentsPanelNodeId] = useState<string>("");
+  const [commentsPanelNodeTitle, setCommentsPanelNodeTitle] = useState<string>("");
+  const [commentsPanelRefresh, setCommentsPanelRefresh] = useState(0);
+
   const goalId = params.id as string;
   const isOwner = user && goal && user.id === goal.user_id;
   const isPublic = goal?.visibility === "public";
@@ -1605,8 +1727,11 @@ export default function GoalDetailPage() {
   };
 
   const handleNodeViewAllComments = () => {
-    // TODO: Open full comments panel/modal for the node
-    console.log("View all comments for node:", selectedNode?.id);
+    if (!selectedNode) return;
+    setCommentsPanelNodeId(selectedNode.id);
+    setCommentsPanelNodeTitle(selectedNode.title);
+    setShowCommentsPanel(true);
+    setShowNodePopup(false); // Close the popup when opening the panel
   };
 
   const handleNodeAddComment = async () => {
@@ -1626,6 +1751,10 @@ export default function GoalDetailPage() {
           comments_count: prev.comments_count + 1,
         };
       });
+      // Trigger refresh of comments panel if it's showing the same node
+      if (showCommentsPanel && commentsPanelNodeId === selectedNode.id) {
+        setCommentsPanelRefresh(prev => prev + 1);
+      }
       toast.success("Comment added!");
     } catch (err) {
       console.error("Failed to add node comment:", err);
@@ -1927,6 +2056,24 @@ export default function GoalDetailPage() {
         onSubmit={handleCommentSubmit}
         nodeTitle={selectedNode?.title || ""}
         isLoading={commentModalLoading}
+      />
+
+      {/* Node Comments Panel (view all comments) */}
+      <NodeCommentsPanel
+        isOpen={showCommentsPanel}
+        onClose={() => setShowCommentsPanel(false)}
+        nodeId={commentsPanelNodeId}
+        nodeTitle={commentsPanelNodeTitle}
+        isAuthenticated={!!user}
+        onAddComment={() => {
+          // When user wants to add a comment from the panel, find the node and open modal
+          const node = nodes.find(n => n.id === commentsPanelNodeId);
+          if (node) {
+            setSelectedNode(node);
+            setShowCommentModal(true);
+          }
+        }}
+        refreshTrigger={commentsPanelRefresh}
       />
     </div>
   );

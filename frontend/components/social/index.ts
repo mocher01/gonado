@@ -18,3 +18,6 @@ export { NodeInteractionPopup } from "./NodeInteractionPopup";
 
 // Comment Modal
 export { CommentInputModal } from "./CommentInputModal";
+
+// Comments Panel (for viewing all comments)
+export { NodeCommentsPanel } from "./NodeCommentsPanel";
