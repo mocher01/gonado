@@ -247,6 +247,32 @@ async def update_goal(
     return goal
 
 
+@router.patch("/{goal_id}", response_model=GoalResponse)
+async def patch_goal(
+    goal_id: UUID,
+    goal_data: GoalUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Partially update a goal (title, description, visibility).
+
+    Only the goal owner can update their goal.
+    """
+    result = await db.execute(
+        select(Goal).where(Goal.id == goal_id, Goal.user_id == current_user.id)
+    )
+    goal = result.scalar_one_or_none()
+
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    for field, value in goal_data.model_dump(exclude_unset=True).items():
+        setattr(goal, field, value)
+
+    await db.flush()
+    return goal
+
+
 @router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_goal(
     goal_id: UUID,

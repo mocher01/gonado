@@ -17,7 +17,7 @@ export interface Goal {
   title: string;
   description: string | null;
   category: string | null;
-  visibility: "public" | "private" | "friends";
+  visibility: "public" | "private" | "shared" | "friends";
   status: "planning" | "active" | "completed" | "abandoned";
   world_theme: string;
   target_date: string | null;

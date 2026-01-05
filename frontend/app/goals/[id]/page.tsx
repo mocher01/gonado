@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { BPMNQuestMap } from "@/components/quest-map";
 import { NodeEditModal } from "@/components/quest-map/NodeEditModal";
+import { EditGoalModal } from "@/components/goals/EditGoalModal";
 import {
   ElementalReactions,
   ElementalReactionsInline,
@@ -1295,6 +1296,10 @@ export default function GoalDetailPage() {
   const [boostModalLoading, setBoostModalLoading] = useState(false);
   const [boostRemainingForGoal, setBoostRemainingForGoal] = useState(3);
 
+  // Edit Goal modal state
+  const [showEditGoalModal, setShowEditGoalModal] = useState(false);
+  const [editGoalLoading, setEditGoalLoading] = useState(false);
+
   const goalId = params.id as string;
   const isOwner = user && goal && user.id === goal.user_id;
   const isPublic = goal?.visibility === "public";
@@ -1984,6 +1989,43 @@ export default function GoalDetailPage() {
     setShowShareMenu(false);
   };
 
+  // Toggle goal visibility (public/private)
+  const handleToggleVisibility = async () => {
+    if (!goal || !isOwner) return;
+    const newVisibility = goal.visibility === "public" ? "private" : "public";
+    try {
+      const updatedGoal = await api.updateGoal(goal.id, { visibility: newVisibility });
+      setGoal(updatedGoal);
+      toast.success(`Goal is now ${newVisibility}`);
+      // Reload social data if made public
+      if (newVisibility === "public") {
+        loadSocialData();
+      }
+    } catch (err) {
+      toast.error("Failed to update visibility");
+    }
+  };
+
+  // Handle edit goal save
+  const handleEditGoalSave = async (data: { title: string; description: string | null; visibility: "public" | "private" | "shared" | "friends" }) => {
+    if (!goal || !isOwner) return;
+    setEditGoalLoading(true);
+    try {
+      const updatedGoal = await api.updateGoal(goal.id, data);
+      setGoal(updatedGoal);
+      setShowEditGoalModal(false);
+      toast.success("Goal updated successfully!");
+      // Reload social data if visibility changed to public
+      if (data.visibility === "public" && goal.visibility !== "public") {
+        loadSocialData();
+      }
+    } catch (err) {
+      throw err; // Let the modal handle the error display
+    } finally {
+      setEditGoalLoading(false);
+    }
+  };
+
   // Loading state
   if (authLoading || loading) {
     return (
@@ -2042,10 +2084,54 @@ export default function GoalDetailPage() {
             </Link>
           </div>
 
-          {/* Top right: Auth header + Share button */}
+          {/* Top right: Auth header + Visibility toggle + Share button */}
           <div className="absolute top-4 right-4 z-30 flex items-center gap-3">
             {/* Auth header */}
             <AuthHeader user={user} isLoading={authLoading} onLogout={logout} />
+
+            {/* Visibility toggle (owner only) */}
+            {isOwner && (
+              <button
+                onClick={handleToggleVisibility}
+                className={`flex items-center gap-2 px-4 py-2 backdrop-blur-sm rounded-full transition-colors ${
+                  isPublic
+                    ? "bg-emerald-500/30 text-emerald-300 hover:bg-emerald-500/40"
+                    : "bg-slate-600/50 text-slate-300 hover:bg-slate-600/70"
+                }`}
+                title={isPublic ? "Click to make private" : "Click to make public"}
+              >
+                {isPublic ? (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Public</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span>Private</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Edit Goal button (owner only) */}
+            {isOwner && (
+              <button
+                onClick={() => setShowEditGoalModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+                title="Edit goal settings"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>Edit</span>
+              </button>
+            )}
 
             {/* Share button (public goals only) */}
             {isPublic && (
@@ -2288,6 +2374,15 @@ export default function GoalDetailPage() {
         boostsRemainingForGoal={boostRemainingForGoal}
         maxPerDay={3}
         isLoading={boostModalLoading}
+      />
+
+      {/* Edit Goal Modal */}
+      <EditGoalModal
+        isOpen={showEditGoalModal}
+        onClose={() => setShowEditGoalModal(false)}
+        onSave={handleEditGoalSave}
+        goal={goal}
+        isLoading={editGoalLoading}
       />
     </div>
   );
