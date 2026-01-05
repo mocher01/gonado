@@ -37,6 +37,12 @@ class NodeStatusUpdate(BaseModel):
     status: NodeStatus
 
 
+class NodePositionUpdate(BaseModel):
+    """Schema for updating node position only."""
+    position_x: float
+    position_y: float
+
+
 # Dependency schemas
 class DependencyCreate(BaseModel):
     depends_on_id: UUID

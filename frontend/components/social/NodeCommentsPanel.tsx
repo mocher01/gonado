@@ -57,6 +57,17 @@ export function NodeCommentsPanel({
     }
   }, [refreshTrigger]);
 
+  // Handle Escape key to close panel
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [isOpen, onClose]);
+
   const loadComments = async (newOffset: number) => {
     setLoading(true);
     try {

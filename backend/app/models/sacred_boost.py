@@ -1,6 +1,7 @@
 import uuid
-from datetime import datetime
-from sqlalchemy import DateTime, Integer, ForeignKey
+from datetime import datetime, date
+from typing import Optional
+from sqlalchemy import DateTime, Integer, ForeignKey, Text, Date
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.database import Base
@@ -8,7 +9,7 @@ from app.database import Base
 
 class SacredBoost(Base):
     """
-    Limited sacred boosts (3 per month per user).
+    Limited sacred boosts (3 per goal per day per user).
     A rare and meaningful way to support someone's journey.
     """
     __tablename__ = "sacred_boosts"
@@ -24,8 +25,14 @@ class SacredBoost(Base):
     # Which goal was boosted
     goal_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("goals.id", ondelete="CASCADE"), nullable=False)
 
-    # Year and month for tracking the 3/month limit
-    year_month: Mapped[int] = mapped_column(Integer, nullable=False)  # Format: YYYYMM (e.g., 202512)
+    # Optional encouragement message
+    message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Date for tracking the 3/goal/day limit
+    boost_date: Mapped[date] = mapped_column(Date, nullable=False, default=date.today)
+
+    # Legacy field for backward compatibility (kept for existing data)
+    year_month: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # Format: YYYYMM (e.g., 202512)
 
     # XP awarded to receiver
     xp_awarded: Mapped[int] = mapped_column(Integer, default=50)

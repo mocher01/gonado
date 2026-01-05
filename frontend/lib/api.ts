@@ -5,14 +5,75 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 class ApiClient {
   private accessToken: string | null = null;
+  private refreshTokenValue: string | null = null;
+  private isRefreshing: boolean = false;
+  private refreshPromise: Promise<boolean> | null = null;
+  private onTokensRefreshed: ((accessToken: string, refreshToken: string) => void) | null = null;
+  private onSessionExpired: (() => void) | null = null;
 
   setToken(token: string | null) {
     this.accessToken = token;
   }
 
+  setRefreshToken(token: string | null) {
+    this.refreshTokenValue = token;
+  }
+
+  setTokenRefreshCallback(callback: (accessToken: string, refreshToken: string) => void) {
+    this.onTokensRefreshed = callback;
+  }
+
+  setSessionExpiredCallback(callback: () => void) {
+    this.onSessionExpired = callback;
+  }
+
+  private async tryRefreshToken(): Promise<boolean> {
+    if (!this.refreshTokenValue) {
+      return false;
+    }
+
+    // If already refreshing, wait for that to complete
+    if (this.isRefreshing && this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.isRefreshing = true;
+    this.refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: this.refreshTokenValue }),
+        });
+
+        if (!response.ok) {
+          return false;
+        }
+
+        const tokens = await response.json();
+        this.accessToken = tokens.access_token;
+        this.refreshTokenValue = tokens.refresh_token;
+
+        if (this.onTokensRefreshed) {
+          this.onTokensRefreshed(tokens.access_token, tokens.refresh_token);
+        }
+
+        return true;
+      } catch {
+        return false;
+      } finally {
+        this.isRefreshing = false;
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
+  }
+
   private async fetch<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    isRetry: boolean = false
   ): Promise<T> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -27,6 +88,21 @@ class ApiClient {
       ...options,
       headers,
     });
+
+    // Handle 401 - try to refresh token
+    if (response.status === 401 && !isRetry && !endpoint.includes('/auth/')) {
+      const refreshed = await this.tryRefreshToken();
+      if (refreshed) {
+        // Retry the request with new token
+        return this.fetch<T>(endpoint, options, true);
+      } else {
+        // Refresh failed - session expired
+        if (this.onSessionExpired) {
+          this.onSessionExpired();
+        }
+        throw new Error("Session expired. Please login again.");
+      }
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -132,6 +208,13 @@ class ApiClient {
     return this.fetch<Node>(`/nodes/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
+    });
+  }
+
+  async updateNodePosition(id: string, position_x: number, position_y: number): Promise<Node> {
+    return this.fetch<Node>(`/nodes/${id}/position`, {
+      method: "PATCH",
+      body: JSON.stringify({ position_x, position_y }),
     });
   }
 
@@ -360,19 +443,49 @@ class ApiClient {
   }
 
   // Sacred Boosts
-  async giveSacredBoost(goalId: string): Promise<any> {
-    return this.fetch(`/sacred-boosts/goals/${goalId}`, { method: "POST" });
+  async giveSacredBoost(goalId: string, message?: string): Promise<any> {
+    return this.fetch(`/sacred-boosts/goals/${goalId}`, {
+      method: "POST",
+      body: JSON.stringify({ message: message || null }),
+    });
   }
 
-  async getGoalBoosts(goalId: string): Promise<any> {
+  async getGoalBoosts(goalId: string): Promise<{
+    boosts: Array<{
+      id: string;
+      giver_id: string;
+      receiver_id: string;
+      goal_id: string;
+      message: string | null;
+      xp_awarded: number;
+      created_at: string;
+      giver_username: string | null;
+      giver_display_name: string | null;
+      giver_avatar_url: string | null;
+    }>;
+    total: number;
+  }> {
     return this.fetch(`/sacred-boosts/goals/${goalId}`);
   }
 
-  async getBoostStatus(): Promise<any> {
+  async getBoostStatus(): Promise<{
+    boosts_remaining_today: number;
+    boosts_given_today: number;
+    max_boosts_per_day: number;
+    boosts_received_total: number;
+    already_boosted_goal: boolean;
+  }> {
     return this.fetch("/sacred-boosts/status");
   }
 
-  async checkCanBoost(goalId: string): Promise<any> {
+  async checkCanBoost(goalId: string): Promise<{
+    can_boost: boolean;
+    boosts_today_for_goal: number;
+    boosts_remaining_for_goal: number;
+    total_boosts_today: number;
+    max_per_day: number;
+    reason: string | null;
+  }> {
     return this.fetch(`/sacred-boosts/check/${goalId}`);
   }
 

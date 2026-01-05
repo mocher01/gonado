@@ -35,29 +35,52 @@ async def create_comment(
     return interaction
 
 
-@router.post("/reactions", response_model=InteractionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/reactions", status_code=status.HTTP_200_OK)
 async def create_reaction(
     reaction_data: ReactionCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a reaction on a target."""
+    """
+    Create, toggle, or replace a reaction on a target.
+
+    Toggle behavior:
+    - If user has no reaction: create new reaction
+    - If user has same reaction type: remove it (toggle off)
+    - If user has different reaction type: replace it
+
+    Returns:
+    - The new/updated reaction if created/replaced
+    - {"removed": true, "reaction_type": "..."} if toggled off
+    """
+    # Convert enum to string value for storage
     reaction_type_value = reaction_data.reaction_type.value if isinstance(reaction_data.reaction_type, ReactionType) else reaction_data.reaction_type
 
-    # Check if user already reacted with same type
+    # Check if user already has ANY reaction on this target
     result = await db.execute(
         select(Interaction).where(
             Interaction.user_id == current_user.id,
             Interaction.target_type == reaction_data.target_type,
             Interaction.target_id == reaction_data.target_id,
-            Interaction.interaction_type == InteractionType.REACTION,
-            Interaction.reaction_type == reaction_type_value
+            Interaction.interaction_type == InteractionType.REACTION
         )
     )
     existing = result.scalar_one_or_none()
-    if existing:
-        raise HTTPException(status_code=400, detail="Already reacted with this type")
 
+    if existing:
+        if existing.reaction_type == reaction_type_value:
+            # Same reaction type - toggle off (remove)
+            await db.delete(existing)
+            await db.commit()
+            return {"removed": True, "reaction_type": reaction_type_value}
+        else:
+            # Different reaction type - replace
+            existing.reaction_type = reaction_type_value
+            await db.commit()
+            await db.refresh(existing)
+            return existing
+
+    # No existing reaction - create new one
     interaction = Interaction(
         user_id=current_user.id,
         target_type=reaction_data.target_type,
@@ -66,7 +89,8 @@ async def create_reaction(
         reaction_type=reaction_type_value
     )
     db.add(interaction)
-    await db.flush()
+    await db.commit()
+    await db.refresh(interaction)
     return interaction
 
 

@@ -24,21 +24,41 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user }),
       setTokens: (accessToken, refreshToken) => {
         api.setToken(accessToken);
+        api.setRefreshToken(refreshToken);
         set({ accessToken, refreshToken });
       },
       logout: () => {
         api.setToken(null);
+        api.setRefreshToken(null);
         set({ user: null, accessToken: null, refreshToken: null });
       },
       initialize: async () => {
-        const { accessToken } = get();
+        const { accessToken, refreshToken, logout } = get();
+
+        // Set up API callbacks
+        api.setTokenRefreshCallback((newAccessToken, newRefreshToken) => {
+          set({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+        });
+
+        api.setSessionExpiredCallback(() => {
+          logout();
+        });
+
         if (accessToken) {
           api.setToken(accessToken);
+          api.setRefreshToken(refreshToken);
           try {
             const user = await api.getCurrentUser();
             set({ user, isLoading: false });
-          } catch {
-            set({ user: null, accessToken: null, refreshToken: null, isLoading: false });
+          } catch (error) {
+            // Only clear if it's a session expired error, not network errors
+            const message = error instanceof Error ? error.message : "";
+            if (message.includes("Session expired") || message.includes("401")) {
+              set({ user: null, accessToken: null, refreshToken: null, isLoading: false });
+            } else {
+              // Network error or other issue - keep tokens, just mark as not loading
+              set({ user: null, isLoading: false });
+            }
           }
         } else {
           set({ isLoading: false });

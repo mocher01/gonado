@@ -108,21 +108,22 @@ export function NodeInteractionPopup({
             onClick={onClose}
           />
 
-          {/* Popup - Centered modal, compact design */}
-          <motion.div
-            ref={popupRef}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: "spring", damping: 30, stiffness: 400 }}
-            className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-[340px] max-h-[85vh] overflow-hidden flex flex-col"
-            style={{
-              background: "linear-gradient(165deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.99) 100%)",
-              borderRadius: "16px",
-              border: "1px solid rgba(71, 85, 105, 0.3)",
-              boxShadow: "0 20px 50px -12px rgba(0, 0, 0, 0.6), 0 0 30px -8px rgba(251, 191, 36, 0.08)",
-            }}
-          >
+          {/* Popup container - Flexbox centering with safe margins */}
+          <div className="fixed z-50 inset-0 flex items-center justify-center p-4 pointer-events-none">
+            <motion.div
+              ref={popupRef}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: "spring", damping: 30, stiffness: 400 }}
+              className="w-full max-w-[340px] max-h-full overflow-hidden flex flex-col pointer-events-auto"
+              style={{
+                background: "linear-gradient(165deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.99) 100%)",
+                borderRadius: "16px",
+                border: "1px solid rgba(71, 85, 105, 0.3)",
+                boxShadow: "0 20px 50px -12px rgba(0, 0, 0, 0.6), 0 0 30px -8px rgba(251, 191, 36, 0.08)",
+              }}
+            >
             {/* Top glow */}
             <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
 
@@ -291,7 +292,8 @@ export function NodeInteractionPopup({
                 </motion.button>
               )}
             </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

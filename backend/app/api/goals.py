@@ -2,15 +2,22 @@ from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, delete
 from app.database import get_db
 from app.api.deps import get_current_user, get_optional_user
 from app.schemas.goal import GoalCreate, GoalUpdate, GoalResponse, GoalListResponse
 from app.schemas.node import NodeResponse
 from app.models.goal import Goal, GoalVisibility, GoalStatus
 from app.models.goal_share import GoalShare, ShareStatus
-from app.models.node import Node
+from app.models.node import Node, NodeDependency
 from app.models.user import User
+from app.models.update import Update
+from app.models.interaction import Interaction, TargetType
+from app.models.comment import Comment, CommentTargetType
+from app.models.follow import Follow, FollowType
+from app.models.activity import Activity, ActivityTargetType
+from app.models.conversation import Conversation
+from app.models.generation_queue import GenerationQueue
 from app.services.ai_planner import ai_planner_service
 from app.services.gamification import gamification_service, XP_REWARDS
 
@@ -246,7 +253,20 @@ async def delete_goal(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete a goal."""
+    """Delete a goal and all associated data.
+
+    This cascades deletion to:
+    - All nodes under this goal
+    - All updates on those nodes
+    - All interactions (reactions) on nodes, updates, and the goal itself
+    - All comments on nodes, updates, and the goal itself
+    - All follows on this goal
+    - All activities related to this goal and its nodes
+    - Goal shares, prophecies, time capsules, sacred boosts (via DB cascade)
+
+    Only the goal owner can delete their goal.
+    """
+    # Verify goal exists and user is the owner
     result = await db.execute(
         select(Goal).where(Goal.id == goal_id, Goal.user_id == current_user.id)
     )
@@ -255,4 +275,138 @@ async def delete_goal(
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
 
+    # Get all node IDs for this goal
+    node_result = await db.execute(
+        select(Node.id).where(Node.goal_id == goal_id)
+    )
+    node_ids = [row[0] for row in node_result.fetchall()]
+
+    # Get all update IDs for these nodes
+    update_ids = []
+    if node_ids:
+        update_result = await db.execute(
+            select(Update.id).where(Update.node_id.in_(node_ids))
+        )
+        update_ids = [row[0] for row in update_result.fetchall()]
+
+    # Delete interactions for updates
+    if update_ids:
+        await db.execute(
+            delete(Interaction).where(
+                Interaction.target_type == TargetType.UPDATE,
+                Interaction.target_id.in_(update_ids)
+            )
+        )
+
+    # Delete interactions for nodes
+    if node_ids:
+        await db.execute(
+            delete(Interaction).where(
+                Interaction.target_type == TargetType.NODE,
+                Interaction.target_id.in_(node_ids)
+            )
+        )
+
+    # Delete interactions for the goal itself
+    await db.execute(
+        delete(Interaction).where(
+            Interaction.target_type == TargetType.GOAL,
+            Interaction.target_id == goal_id
+        )
+    )
+
+    # Delete comments for updates
+    if update_ids:
+        await db.execute(
+            delete(Comment).where(
+                Comment.target_type == CommentTargetType.UPDATE,
+                Comment.target_id.in_(update_ids)
+            )
+        )
+
+    # Delete comments for nodes
+    if node_ids:
+        await db.execute(
+            delete(Comment).where(
+                Comment.target_type == CommentTargetType.NODE,
+                Comment.target_id.in_(node_ids)
+            )
+        )
+
+    # Delete comments for the goal itself
+    await db.execute(
+        delete(Comment).where(
+            Comment.target_type == CommentTargetType.GOAL,
+            Comment.target_id == goal_id
+        )
+    )
+
+    # Delete follows for this goal
+    await db.execute(
+        delete(Follow).where(
+            Follow.follow_type == FollowType.GOAL,
+            Follow.target_id == goal_id
+        )
+    )
+
+    # Delete activities for updates
+    if update_ids:
+        await db.execute(
+            delete(Activity).where(
+                Activity.target_type == ActivityTargetType.UPDATE,
+                Activity.target_id.in_(update_ids)
+            )
+        )
+
+    # Delete activities for nodes
+    if node_ids:
+        await db.execute(
+            delete(Activity).where(
+                Activity.target_type == ActivityTargetType.NODE,
+                Activity.target_id.in_(node_ids)
+            )
+        )
+
+    # Delete activities for the goal
+    await db.execute(
+        delete(Activity).where(
+            Activity.target_type == ActivityTargetType.GOAL,
+            Activity.target_id == goal_id
+        )
+    )
+
+    # Unlink conversations and generation_queue (set goal_id to NULL)
+    await db.execute(
+        Conversation.__table__.update()
+        .where(Conversation.goal_id == goal_id)
+        .values(goal_id=None)
+    )
+    await db.execute(
+        GenerationQueue.__table__.update()
+        .where(GenerationQueue.goal_id == goal_id)
+        .values(goal_id=None)
+    )
+
+    # Delete updates for nodes
+    if node_ids:
+        await db.execute(
+            delete(Update).where(Update.node_id.in_(node_ids))
+        )
+
+    # Delete node dependencies (should cascade, but be explicit)
+    if node_ids:
+        await db.execute(
+            delete(NodeDependency).where(
+                (NodeDependency.node_id.in_(node_ids)) |
+                (NodeDependency.depends_on_id.in_(node_ids))
+            )
+        )
+
+    # Delete nodes
+    if node_ids:
+        await db.execute(
+            delete(Node).where(Node.goal_id == goal_id)
+        )
+
+    # Finally delete the goal (shares, prophecies, time_capsules, sacred_boosts, resource_drops cascade via DB)
     await db.delete(goal)

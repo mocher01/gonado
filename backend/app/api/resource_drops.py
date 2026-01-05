@@ -14,6 +14,7 @@ from app.models.resource_drop import ResourceDrop
 from app.models.node import Node
 from app.models.goal import Goal
 from app.models.user import User
+from app.services.notifications import notification_service
 
 router = APIRouter()
 
@@ -79,6 +80,36 @@ async def create_resource_drop(
         .where(ResourceDrop.id == drop.id)
     )
     drop = result.scalar_one()
+
+    # Create notification for goal owner
+    await notification_service.create_notification(
+        db=db,
+        user_id=goal.user_id,
+        notification_type="resource_drop",
+        title=f"{current_user.display_name or current_user.username} dropped a resource",
+        message=f"New resource on '{node.title}': {data.message or 'Check it out!'}",
+        data={
+            "drop_id": str(drop.id),
+            "node_id": str(node_id),
+            "node_title": node.title,
+            "goal_id": str(goal.id),
+            "goal_title": goal.title,
+            "dropper_username": current_user.username,
+        }
+    )
+
+    # Send real-time notification
+    await notification_service.send_realtime_notification(
+        user_id=goal.user_id,
+        notification_type="resource_drop",
+        title=f"{current_user.display_name or current_user.username} dropped a resource",
+        message=f"New resource on '{node.title}'",
+        data={
+            "drop_id": str(drop.id),
+            "node_id": str(node_id),
+            "goal_id": str(goal.id),
+        }
+    )
 
     return _build_drop_response(drop)
 

@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.api.deps import get_current_user
 from app.schemas.node import (
-    NodeCreate, NodeUpdate, NodeResponse, NodeStatusUpdate,
+    NodeCreate, NodeUpdate, NodeResponse, NodeStatusUpdate, NodePositionUpdate,
     DependencyCreate, DependencyResponse, NodeWithDependenciesResponse,
     NodeSocialSummary, GoalNodesSocialSummary, ReactionCounts, TopComment
 )
@@ -81,6 +81,31 @@ async def update_node(
 
     for field, value in node_data.model_dump(exclude_unset=True).items():
         setattr(node, field, value)
+
+    await db.flush()
+    return node
+
+
+@router.patch("/{node_id}/position", response_model=NodeResponse)
+async def update_node_position(
+    node_id: UUID,
+    position_data: NodePositionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update a node's position. Only the goal owner can update positions."""
+    result = await db.execute(
+        select(Node).join(Goal).where(
+            Node.id == node_id,
+            Goal.user_id == current_user.id
+        )
+    )
+    node = result.scalar_one_or_none()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found or not authorized")
+
+    node.position_x = position_data.position_x
+    node.position_y = position_data.position_y
 
     await db.flush()
     return node

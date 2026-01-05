@@ -1,12 +1,12 @@
 from uuid import UUID
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SacredBoostCreate(BaseModel):
     """Give a sacred boost to a goal."""
-    goal_id: UUID
+    message: Optional[str] = Field(None, max_length=500, description="Optional encouragement message")
 
 
 class SacredBoostResponse(BaseModel):
@@ -17,6 +17,7 @@ class SacredBoostResponse(BaseModel):
     giver_id: UUID
     receiver_id: UUID
     goal_id: UUID
+    message: Optional[str] = None
     xp_awarded: int
     created_at: datetime
 
@@ -33,9 +34,9 @@ class SacredBoostListResponse(BaseModel):
 
 
 class SacredBoostStatus(BaseModel):
-    """User's boost status for the month."""
-    boosts_remaining: int
-    boosts_given_this_month: int
-    max_boosts_per_month: int = 3
+    """User's boost status for the day/goal."""
+    boosts_remaining_today: int
+    boosts_given_today: int
+    max_boosts_per_day: int = 3
     boosts_received_total: int
-    next_reset_date: str  # First of next month
+    already_boosted_goal: bool = False

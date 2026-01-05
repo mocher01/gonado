@@ -107,7 +107,7 @@ export function FellowTravelers({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            🚶 Join Journey
+            Follow
           </motion.button>
         )}
 

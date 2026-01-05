@@ -17,10 +17,12 @@ import {
   FellowTravelers,
   QuestChronicle,
   SacredBoost,
+  SacredBoostModal,
   ProphecyBoard,
   NodeInteractionPopup,
   CommentInputModal,
   NodeCommentsPanel,
+  ResourceDropModal,
 } from "@/components/social";
 import type { ElementType } from "@/components/social";
 import type { Goal, Node, ChecklistItem } from "@/types";
@@ -172,7 +174,7 @@ function AuthHeader({
 
         {/* Text with amber gradient */}
         <span className="relative z-10 font-medium bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent group-hover:from-amber-100 group-hover:via-amber-300 group-hover:to-amber-100 transition-all duration-300">
-          Begin Journey
+          Sign In
         </span>
 
         {/* Decorative arrow */}
@@ -511,6 +513,7 @@ function VisitorSupportBar({
   commentsCount,
   onOpenPanel,
   disabled,
+  onLoginRequired,
 }: {
   isFollowing: boolean;
   onFollow: () => void;
@@ -522,8 +525,17 @@ function VisitorSupportBar({
   commentsCount: number;
   onOpenPanel: () => void;
   disabled?: boolean;
+  onLoginRequired?: () => void;
 }) {
   const totalReactions = Object.values(reactions).reduce((sum, count) => sum + count, 0);
+
+  const handleFollowClick = () => {
+    if (disabled && onLoginRequired) {
+      onLoginRequired();
+    } else {
+      onFollow();
+    }
+  };
 
   return (
     <motion.div
@@ -537,18 +549,17 @@ function VisitorSupportBar({
           <div className="flex items-center justify-between gap-4">
             {/* Follow button */}
             <motion.button
-              onClick={onFollow}
-              disabled={disabled}
+              onClick={handleFollowClick}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${
                 isFollowing
                   ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                   : "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700"
-              } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-              whileHover={!disabled ? { scale: 1.02 } : {}}
-              whileTap={!disabled ? { scale: 0.98 } : {}}
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               <span>{isFollowing ? "✓" : "🚶"}</span>
-              <span>{isFollowing ? "Following" : "Join Journey"}</span>
+              <span>{isFollowing ? "Following" : "Follow"}</span>
             </motion.button>
 
             {/* Quick reactions */}
@@ -727,7 +738,7 @@ function VisitorSupportPanel({
               <div className="rounded-2xl bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/20 p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-white mb-1">Join This Journey</h3>
+                    <h3 className="font-semibold text-white mb-1">Follow This Quest</h3>
                     <p className="text-sm text-slate-400">Follow along and get updates</p>
                   </div>
                   <motion.button
@@ -1264,12 +1275,25 @@ export default function GoalDetailPage() {
   // Comment modal state
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [commentModalLoading, setCommentModalLoading] = useState(false);
+  const [commentModalNodeId, setCommentModalNodeId] = useState<string>("");
+  const [commentModalNodeTitle, setCommentModalNodeTitle] = useState<string>("");
 
   // Comments panel state (for viewing all comments on a node)
   const [showCommentsPanel, setShowCommentsPanel] = useState(false);
   const [commentsPanelNodeId, setCommentsPanelNodeId] = useState<string>("");
   const [commentsPanelNodeTitle, setCommentsPanelNodeTitle] = useState<string>("");
   const [commentsPanelRefresh, setCommentsPanelRefresh] = useState(0);
+
+  // Resource drop modal state
+  const [showResourceDropModal, setShowResourceDropModal] = useState(false);
+  const [resourceDropNodeId, setResourceDropNodeId] = useState<string>("");
+  const [resourceDropNodeTitle, setResourceDropNodeTitle] = useState<string>("");
+  const [resourceDropLoading, setResourceDropLoading] = useState(false);
+
+  // Sacred Boost modal state
+  const [showBoostModal, setShowBoostModal] = useState(false);
+  const [boostModalLoading, setBoostModalLoading] = useState(false);
+  const [boostRemainingForGoal, setBoostRemainingForGoal] = useState(3);
 
   const goalId = params.id as string;
   const isOwner = user && goal && user.id === goal.user_id;
@@ -1278,6 +1302,15 @@ export default function GoalDetailPage() {
   useEffect(() => {
     if (goalId) loadGoal();
   }, [goalId]);
+
+  // Re-check follow status when user becomes available
+  useEffect(() => {
+    if (user && goalId && isPublic) {
+      api.checkFollowStatus("goal", goalId)
+        .then((status) => setIsFollowing(status.is_following))
+        .catch(() => {});
+    }
+  }, [user, goalId, isPublic]);
 
   const loadGoal = async () => {
     try {
@@ -1394,13 +1427,13 @@ export default function GoalDetailPage() {
       setBoostData({
         totalBoosts: boostsData.total || 0,
         boosters: (boostsData.boosts || []).map((b: any) => ({
-          id: b.id,
-          username: b.username,
-          displayName: b.display_name,
-          avatarUrl: b.avatar_url,
+          id: b.giver_id,
+          username: b.giver_username,
+          displayName: b.giver_display_name,
+          avatarUrl: b.giver_avatar_url,
           createdAt: b.created_at,
         })),
-        alreadyBoosted: boostsData.already_boosted || false,
+        alreadyBoosted: false, // Will be updated from check endpoint
         boostsRemaining: 3,
       });
 
@@ -1409,8 +1442,13 @@ export default function GoalDetailPage() {
           const followStatus = await api.checkFollowStatus("goal", goalId);
           setIsFollowing(followStatus.is_following);
 
-          const boostStatus = await api.getBoostStatus();
-          setBoostData((prev) => ({ ...prev, boostsRemaining: boostStatus.boosts_remaining || 3 }));
+          // Get user's boost status for this goal
+          const boostCheck = await api.checkCanBoost(goalId);
+          setBoostData((prev) => ({
+            ...prev,
+            boostsRemaining: boostCheck.boosts_remaining_for_goal,
+            alreadyBoosted: boostCheck.boosts_today_for_goal > 0,
+          }));
 
           const userProphecyData = propheciesData.prophecies?.find((p: any) => p.user_id === user.id);
           if (userProphecyData) {
@@ -1485,9 +1523,10 @@ export default function GoalDetailPage() {
   const handleNodePositionChange = async (nodeId: string, x: number, y: number) => {
     try {
       setNodes(prev => prev.map(node => node.id === nodeId ? { ...node, position_x: x, position_y: y } : node));
-      await api.updateNode(nodeId, { position_x: x, position_y: y });
+      await api.updateNodePosition(nodeId, x, y);
     } catch (err) {
       console.error("Failed to save position:", err);
+      throw err; // Re-throw so the component can show error feedback
     }
   };
 
@@ -1534,6 +1573,17 @@ export default function GoalDetailPage() {
         toast.success("Following this quest!");
       }
     } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      // Handle "Already following" - just update UI state
+      if (message.includes("Already following")) {
+        setIsFollowing(true);
+        return;
+      }
+      // Handle "Not following" - just update UI state
+      if (message.includes("Not following")) {
+        setIsFollowing(false);
+        return;
+      }
       console.error("Failed to toggle follow:", err);
       toast.error("Failed to update follow status");
     }
@@ -1594,23 +1644,25 @@ export default function GoalDetailPage() {
   };
 
   const handleBoost = async () => {
-    if (!user) return;
+    if (!user) {
+      toast("Sign in to send a Sacred Boost", {
+        icon: "🔑",
+        duration: 3000,
+        style: { background: "#1e293b", color: "#fff", border: "1px solid rgba(251, 191, 36, 0.3)" },
+      });
+      return;
+    }
+
+    // Fetch current boost status for this goal and open modal
     try {
-      await api.giveSacredBoost(goalId);
-      setBoostData((prev) => ({
-        ...prev,
-        totalBoosts: prev.totalBoosts + 1,
-        alreadyBoosted: true,
-        boostsRemaining: prev.boostsRemaining - 1,
-        boosters: [
-          ...prev.boosters,
-          { id: user.id, username: user.username, displayName: user.display_name || null, avatarUrl: user.avatar_url || null, createdAt: new Date().toISOString() },
-        ],
-      }));
-      toast.success("Sacred Boost sent!");
+      const canBoostResponse = await api.checkCanBoost(goalId);
+      setBoostRemainingForGoal(canBoostResponse.boosts_remaining_for_goal);
+      setShowBoostModal(true);
     } catch (err) {
-      console.error("Failed to give boost:", err);
-      toast.error("Failed to send boost");
+      console.error("Failed to check boost status:", err);
+      // Open modal anyway with default remaining
+      setBoostRemainingForGoal(3);
+      setShowBoostModal(true);
     }
   };
 
@@ -1736,25 +1788,47 @@ export default function GoalDetailPage() {
 
   const handleNodeAddComment = async () => {
     if (!user || !selectedNode) return;
+    // Store node info before opening modal (selectedNode might become null when popup closes)
+    setCommentModalNodeId(selectedNode.id);
+    setCommentModalNodeTitle(selectedNode.title);
     setShowCommentModal(true);
   };
 
   const handleCommentSubmit = async (content: string) => {
-    if (!user || !selectedNode) return;
+    // Use stored node ID from comment modal state (more reliable than selectedNode)
+    const nodeId = commentModalNodeId;
+    if (!user || !nodeId) {
+      toast.error("Failed to add comment");
+      return;
+    }
     setCommentModalLoading(true);
     try {
-      await api.addComment("node", selectedNode.id, content);
-      setSelectedNodeSummary((prev: any) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          comments_count: prev.comments_count + 1,
-        };
-      });
+      await api.addComment("node", nodeId, content);
+      // Update selectedNodeSummary if it matches the node we commented on
+      if (selectedNode?.id === nodeId) {
+        setSelectedNodeSummary((prev: any) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            comments_count: prev.comments_count + 1,
+          };
+        });
+      }
       // Trigger refresh of comments panel if it's showing the same node
-      if (showCommentsPanel && commentsPanelNodeId === selectedNode.id) {
+      if (showCommentsPanel && commentsPanelNodeId === nodeId) {
         setCommentsPanelRefresh(prev => prev + 1);
       }
+      // Also update nodeSocialData for the quest map
+      setNodeSocialData((prev) => {
+        const currentData = prev[nodeId] || {};
+        return {
+          ...prev,
+          [nodeId]: {
+            ...currentData,
+            comment_count: (currentData.comment_count || 0) + 1,
+          },
+        };
+      });
       toast.success("Comment added!");
     } catch (err) {
       console.error("Failed to add node comment:", err);
@@ -1766,28 +1840,140 @@ export default function GoalDetailPage() {
   };
 
   const handleNodeDropResource = async () => {
-    // TODO: Open resource drop modal
-    console.log("Drop resource for node:", selectedNode?.id);
+    if (!user || !selectedNode) return;
+    // Store node info before opening modal
+    setResourceDropNodeId(selectedNode.id);
+    setResourceDropNodeTitle(selectedNode.title);
+    setShowResourceDropModal(true);
+  };
+
+  const handleResourceDropSubmit = async (data: { url: string; title: string; description?: string }) => {
+    if (!user || !resourceDropNodeId) {
+      toast.error("Failed to drop resource");
+      return;
+    }
+    setResourceDropLoading(true);
+    try {
+      // Format the resource for the API
+      const resources = data.url ? [{
+        url: data.url,
+        title: data.title,
+        description: data.description || "",
+        resource_type: "link",
+      }] : [];
+
+      await api.dropResource(resourceDropNodeId, data.title, resources);
+
+      // Update nodeSocialData to reflect the new resource
+      setNodeSocialData((prev) => {
+        const currentData = prev[resourceDropNodeId] || {};
+        return {
+          ...prev,
+          [resourceDropNodeId]: {
+            ...currentData,
+            resource_count: (currentData.resource_count || 0) + 1,
+          },
+        };
+      });
+
+      toast.success("Resource dropped! The goal owner will be notified.");
+    } catch (err) {
+      console.error("Failed to drop resource:", err);
+      toast.error("Failed to drop resource");
+      throw err; // Re-throw so modal knows it failed
+    } finally {
+      setResourceDropLoading(false);
+    }
   };
 
   const handleNodeBoost = async () => {
-    // TODO: Implement node-level boost
-    console.log("Boost node:", selectedNode?.id);
+    if (!user) {
+      toast("Sign in to send a Sacred Boost", {
+        icon: "🔑",
+        duration: 3000,
+        style: { background: "#1e293b", color: "#fff", border: "1px solid rgba(251, 191, 36, 0.3)" },
+      });
+      return;
+    }
+
+    // Fetch current boost status for this goal
+    try {
+      const canBoostResponse = await api.checkCanBoost(goalId);
+      setBoostRemainingForGoal(canBoostResponse.boosts_remaining_for_goal);
+      setShowBoostModal(true);
+    } catch (err) {
+      console.error("Failed to check boost status:", err);
+      // Open modal anyway with default remaining
+      setBoostRemainingForGoal(3);
+      setShowBoostModal(true);
+    }
   };
 
-  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/goals/${goalId}` : "";
+  const handleBoostSubmit = async (message?: string) => {
+    if (!user) return;
+
+    setBoostModalLoading(true);
+    try {
+      await api.giveSacredBoost(goalId, message);
+
+      // Update boost data
+      setBoostData((prev) => ({
+        ...prev,
+        totalBoosts: prev.totalBoosts + 1,
+        boosters: [
+          ...prev.boosters,
+          {
+            id: user.id,
+            username: user.username,
+            displayName: user.display_name || null,
+            avatarUrl: user.avatar_url || null,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      }));
+      setBoostRemainingForGoal((prev) => Math.max(0, prev - 1));
+
+      toast.success("Sacred Boost sent! +50 XP awarded");
+      setShowBoostModal(false);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to send boost";
+      // Re-throw for the modal to handle and display
+      throw new Error(errorMessage);
+    } finally {
+      setBoostModalLoading(false);
+    }
+  };
+
+  const getShareUrl = () => typeof window !== "undefined" ? `${window.location.origin}/goals/${goalId}` : "";
 
   const handleCopyLink = async () => {
+    const url = getShareUrl();
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = url;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
       setCopied(true);
+      toast.success("Link copied to clipboard!");
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
+      toast.error("Failed to copy link");
     }
   };
 
   const handleShare = (platform: string) => {
+    const shareUrl = getShareUrl();
     const text = `Check out my goal: ${goal?.title}`;
     const urls: Record<string, string> = {
       twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`,
@@ -1836,6 +2022,7 @@ export default function GoalDetailPage() {
             nodes={nodes}
             worldTheme={goal.world_theme || "mountain"}
             goalTitle={goal.title}
+            isOwner={!!isOwner}
             onCompleteNode={isOwner ? handleCompleteNode : undefined}
             onChecklistToggle={isOwner ? handleChecklistToggle : undefined}
             onNodePositionChange={isOwner ? handleNodePositionChange : undefined}
@@ -1931,6 +2118,13 @@ export default function GoalDetailPage() {
               commentsCount={comments.length}
               onOpenPanel={() => setShowVisitorPanel(true)}
               disabled={!user}
+              onLoginRequired={() => {
+                toast("Sign in to follow this quest", {
+                  icon: "🔑",
+                  duration: 3000,
+                  style: { background: "#1e293b", color: "#fff", border: "1px solid rgba(251, 191, 36, 0.3)" },
+                });
+              }}
             />
           )}
         </motion.div>
@@ -2054,7 +2248,7 @@ export default function GoalDetailPage() {
         isOpen={showCommentModal}
         onClose={() => setShowCommentModal(false)}
         onSubmit={handleCommentSubmit}
-        nodeTitle={selectedNode?.title || ""}
+        nodeTitle={commentModalNodeTitle}
         isLoading={commentModalLoading}
       />
 
@@ -2066,14 +2260,34 @@ export default function GoalDetailPage() {
         nodeTitle={commentsPanelNodeTitle}
         isAuthenticated={!!user}
         onAddComment={() => {
-          // When user wants to add a comment from the panel, find the node and open modal
-          const node = nodes.find(n => n.id === commentsPanelNodeId);
-          if (node) {
-            setSelectedNode(node);
+          // When user wants to add a comment from the panel, use stored panel state
+          if (commentsPanelNodeId) {
+            setCommentModalNodeId(commentsPanelNodeId);
+            setCommentModalNodeTitle(commentsPanelNodeTitle);
             setShowCommentModal(true);
           }
         }}
         refreshTrigger={commentsPanelRefresh}
+      />
+
+      {/* Resource Drop Modal */}
+      <ResourceDropModal
+        isOpen={showResourceDropModal}
+        onClose={() => setShowResourceDropModal(false)}
+        onSubmit={handleResourceDropSubmit}
+        nodeTitle={resourceDropNodeTitle}
+        isLoading={resourceDropLoading}
+      />
+
+      {/* Sacred Boost Modal */}
+      <SacredBoostModal
+        isOpen={showBoostModal}
+        onClose={() => setShowBoostModal(false)}
+        onSubmit={handleBoostSubmit}
+        goalTitle={goal?.title || ""}
+        boostsRemainingForGoal={boostRemainingForGoal}
+        maxPerDay={3}
+        isLoading={boostModalLoading}
       />
     </div>
   );

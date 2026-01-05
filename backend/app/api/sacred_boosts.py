@@ -13,25 +13,18 @@ from app.schemas.sacred_boost import (
 from app.models.sacred_boost import SacredBoost
 from app.models.goal import Goal
 from app.models.user import User
+from app.services.notifications import notification_service
 
 router = APIRouter()
 
-MAX_BOOSTS_PER_MONTH = 3
+MAX_BOOSTS_PER_DAY = 3
 XP_PER_BOOST = 50
 
 
 def _get_current_year_month() -> int:
-    """Get current year-month as integer YYYYMM."""
+    """Get current year-month as integer YYYYMM (legacy support)."""
     today = date.today()
     return today.year * 100 + today.month
-
-
-def _get_next_reset_date() -> str:
-    """Get the first day of next month."""
-    today = date.today()
-    if today.month == 12:
-        return f"{today.year + 1}-01-01"
-    return f"{today.year}-{today.month + 1:02d}-01"
 
 
 def _build_boost_response(boost: SacredBoost) -> SacredBoostResponse:
@@ -41,6 +34,7 @@ def _build_boost_response(boost: SacredBoost) -> SacredBoostResponse:
         giver_id=boost.giver_id,
         receiver_id=boost.receiver_id,
         goal_id=boost.goal_id,
+        message=boost.message,
         xp_awarded=boost.xp_awarded,
         created_at=boost.created_at,
         giver_username=boost.giver.username if boost.giver else None,
@@ -52,10 +46,11 @@ def _build_boost_response(boost: SacredBoost) -> SacredBoostResponse:
 @router.post("/goals/{goal_id}", response_model=SacredBoostResponse, status_code=status.HTTP_201_CREATED)
 async def give_sacred_boost(
     goal_id: UUID,
+    boost_data: Optional[SacredBoostCreate] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Give a sacred boost to a goal (limited to 3 per month)."""
+    """Give a sacred boost to a goal (limited to 3 per goal per day)."""
     # Verify goal exists
     result = await db.execute(
         select(Goal).where(Goal.id == goal_id)
@@ -71,40 +66,35 @@ async def give_sacred_boost(
     if goal.user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot boost your own goal")
 
-    current_ym = _get_current_year_month()
+    today = date.today()
 
-    # Check how many boosts given this month
+    # Check how many boosts given today for this specific goal
     result = await db.execute(
         select(func.count(SacredBoost.id)).where(
             SacredBoost.giver_id == current_user.id,
-            SacredBoost.year_month == current_ym
+            SacredBoost.goal_id == goal_id,
+            SacredBoost.boost_date == today
         )
     )
-    boosts_this_month = result.scalar() or 0
+    boosts_today_for_goal = result.scalar() or 0
 
-    if boosts_this_month >= MAX_BOOSTS_PER_MONTH:
+    if boosts_today_for_goal >= MAX_BOOSTS_PER_DAY:
         raise HTTPException(
-            status_code=400,
-            detail=f"You have already given {MAX_BOOSTS_PER_MONTH} sacred boosts this month. Resets on {_get_next_reset_date()}"
+            status_code=429,
+            detail=f"You have already given {MAX_BOOSTS_PER_DAY} sacred boosts to this goal today. Try again tomorrow!"
         )
 
-    # Check if already boosted this goal
-    result = await db.execute(
-        select(SacredBoost).where(
-            SacredBoost.giver_id == current_user.id,
-            SacredBoost.goal_id == goal_id
-        )
-    )
-    existing = result.scalar_one_or_none()
-    if existing:
-        raise HTTPException(status_code=400, detail="You have already boosted this goal")
+    # Get optional message from request body
+    message = boost_data.message if boost_data else None
 
     # Create the boost
     boost = SacredBoost(
         giver_id=current_user.id,
         receiver_id=goal.user_id,
         goal_id=goal_id,
-        year_month=current_ym,
+        message=message,
+        boost_date=today,
+        year_month=_get_current_year_month(),  # Legacy field
         xp_awarded=XP_PER_BOOST
     )
     db.add(boost)
@@ -117,6 +107,44 @@ async def give_sacred_boost(
     receiver.xp += XP_PER_BOOST
 
     await db.flush()
+
+    # Create notification for goal owner
+    giver_name = current_user.display_name or current_user.username
+    notification_title = f"{giver_name} gave you a Sacred Boost!"
+    notification_message = f"Your goal \"{goal.title}\" received a Sacred Boost (+{XP_PER_BOOST} XP)"
+    if message:
+        notification_message += f": \"{message}\""
+
+    await notification_service.create_notification(
+        db=db,
+        user_id=goal.user_id,
+        notification_type="sacred_boost",
+        title=notification_title,
+        message=notification_message,
+        data={
+            "goal_id": str(goal_id),
+            "goal_title": goal.title,
+            "giver_id": str(current_user.id),
+            "giver_username": current_user.username,
+            "boost_message": message,
+            "xp_awarded": XP_PER_BOOST
+        }
+    )
+
+    # Send real-time notification
+    await notification_service.send_realtime_notification(
+        user_id=goal.user_id,
+        notification_type="sacred_boost",
+        title=notification_title,
+        message=notification_message,
+        data={
+            "goal_id": str(goal_id),
+            "giver_username": current_user.username,
+            "boost_message": message
+        }
+    )
+
+    await db.commit()
 
     # Reload with relationships
     result = await db.execute(
@@ -162,17 +190,17 @@ async def get_boost_status(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get current user's boost status."""
-    current_ym = _get_current_year_month()
+    """Get current user's boost status for today."""
+    today = date.today()
 
-    # Count boosts given this month
+    # Count boosts given today (across all goals)
     result = await db.execute(
         select(func.count(SacredBoost.id)).where(
             SacredBoost.giver_id == current_user.id,
-            SacredBoost.year_month == current_ym
+            SacredBoost.boost_date == today
         )
     )
-    given_this_month = result.scalar() or 0
+    given_today = result.scalar() or 0
 
     # Count total boosts received
     result = await db.execute(
@@ -183,11 +211,11 @@ async def get_boost_status(
     received_total = result.scalar() or 0
 
     return SacredBoostStatus(
-        boosts_remaining=MAX_BOOSTS_PER_MONTH - given_this_month,
-        boosts_given_this_month=given_this_month,
-        max_boosts_per_month=MAX_BOOSTS_PER_MONTH,
+        boosts_remaining_today=MAX_BOOSTS_PER_DAY - given_today,
+        boosts_given_today=given_today,
+        max_boosts_per_day=MAX_BOOSTS_PER_DAY,
         boosts_received_total=received_total,
-        next_reset_date=_get_next_reset_date()
+        already_boosted_goal=False  # This field is goal-specific, use check endpoint
     )
 
 
@@ -197,34 +225,39 @@ async def check_can_boost(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Check if user can boost a specific goal."""
-    current_ym = _get_current_year_month()
+    """Check if user can boost a specific goal today."""
+    today = date.today()
 
-    # Check monthly limit
+    # Check daily limit for this specific goal
     result = await db.execute(
         select(func.count(SacredBoost.id)).where(
             SacredBoost.giver_id == current_user.id,
-            SacredBoost.year_month == current_ym
+            SacredBoost.goal_id == goal_id,
+            SacredBoost.boost_date == today
         )
     )
-    given_this_month = result.scalar() or 0
+    boosts_today_for_goal = result.scalar() or 0
 
-    # Check if already boosted this goal
+    # Check total boosts today (across all goals) for status info
     result = await db.execute(
-        select(SacredBoost).where(
+        select(func.count(SacredBoost.id)).where(
             SacredBoost.giver_id == current_user.id,
-            SacredBoost.goal_id == goal_id
+            SacredBoost.boost_date == today
         )
     )
-    already_boosted = result.scalar_one_or_none() is not None
+    total_boosts_today = result.scalar() or 0
+
+    can_boost = boosts_today_for_goal < MAX_BOOSTS_PER_DAY
+    boosts_remaining_for_goal = MAX_BOOSTS_PER_DAY - boosts_today_for_goal
 
     return {
-        "can_boost": given_this_month < MAX_BOOSTS_PER_MONTH and not already_boosted,
-        "already_boosted": already_boosted,
-        "boosts_remaining": MAX_BOOSTS_PER_MONTH - given_this_month,
+        "can_boost": can_boost,
+        "boosts_today_for_goal": boosts_today_for_goal,
+        "boosts_remaining_for_goal": boosts_remaining_for_goal,
+        "total_boosts_today": total_boosts_today,
+        "max_per_day": MAX_BOOSTS_PER_DAY,
         "reason": (
-            "Already boosted this goal" if already_boosted
-            else f"No boosts remaining this month" if given_this_month >= MAX_BOOSTS_PER_MONTH
-            else None
+            f"You've reached the daily limit ({MAX_BOOSTS_PER_DAY}) for this goal"
+            if not can_boost else None
         )
     }

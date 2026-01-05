@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('goal_text', sa.Text(), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'processing', 'completed', 'failed', name='queuestatus'), nullable=False),
+        sa.Column('status', postgresql.ENUM('pending', 'processing', 'completed', 'failed', name='queuestatus', create_type=False), nullable=False),
         sa.Column('goal_id', postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column('generated_plan', postgresql.JSON(astext_type=sa.Text()), nullable=True),
         sa.Column('error_message', sa.Text(), nullable=True),

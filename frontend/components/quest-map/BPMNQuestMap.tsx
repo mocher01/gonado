@@ -34,7 +34,7 @@
  * ✓ Button "Mark as Complete" must be visible on active nodes
  */
 
-import { useMemo, useEffect, useState, useCallback } from "react";
+import { useMemo, useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Node } from "@/types";
 import { TaskNode } from "./nodes/TaskNode";
@@ -53,6 +53,7 @@ interface BPMNQuestMapProps {
   nodes: Node[];
   worldTheme: string;
   goalTitle: string;
+  isOwner?: boolean;
   onNodeClick?: (node: Node) => void;
   onNodeSocialClick?: (node: Node, screenPosition: { x: number; y: number }) => void;
   onCompleteNode?: (nodeId: string) => void;
@@ -161,6 +162,7 @@ function BPMNQuestMapInner({
   nodes: inputNodes,
   worldTheme,
   goalTitle,
+  isOwner = false,
   onCompleteNode,
   onChecklistToggle,
   onNodePositionChange,
@@ -503,11 +505,28 @@ function BPMNQuestMapInner({
   const [draggableNodes, setDraggableNodes] = useState(flowNodes);
   const [draggableEdges, setDraggableEdges] = useState(flowEdges);
 
+  // State for save indicator
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Debounce ref for position saves
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+
   // Sync when flow data changes
   useEffect(() => {
     setDraggableNodes(flowNodes);
     setDraggableEdges(flowEdges);
   }, [flowNodes, flowEdges]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // Handle node position changes (drag) using React Flow's applyNodeChanges
   const onNodesChange = useCallback((changes: any[]) => {
@@ -530,21 +549,54 @@ function BPMNQuestMapInner({
     });
   }, []);
 
-  // Persist position on drag end
+  // Persist position on drag end with debouncing
   const onNodeDragStop = useCallback(
     (_event: any, node: any) => {
       // Only persist task nodes (not gateways or virtual nodes)
       if (
         onNodePositionChange &&
+        isOwner &&
         !node.id.startsWith("fork-") &&
         !node.id.startsWith("join-") &&
         node.id !== "end" &&
         node.id !== "start"
       ) {
-        onNodePositionChange(node.id, node.position.x, node.position.y);
+        // Add to pending positions
+        pendingPositionsRef.current.set(node.id, { x: node.position.x, y: node.position.y });
+
+        // Clear existing debounce timer
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+
+        // Set new debounce timer (500ms)
+        debounceTimerRef.current = setTimeout(async () => {
+          const pending = new Map(pendingPositionsRef.current);
+          pendingPositionsRef.current.clear();
+
+          if (pending.size > 0) {
+            setIsSaving(true);
+            setSaveSuccess(false);
+
+            try {
+              // Save all pending positions
+              const savePromises = Array.from(pending.entries()).map(([nodeId, pos]) =>
+                onNodePositionChange(nodeId, pos.x, pos.y)
+              );
+              await Promise.all(savePromises);
+              setSaveSuccess(true);
+              // Hide success indicator after 1.5s
+              setTimeout(() => setSaveSuccess(false), 1500);
+            } catch (error) {
+              console.error("Failed to save positions:", error);
+            } finally {
+              setIsSaving(false);
+            }
+          }
+        }, 500);
       }
     },
-    [onNodePositionChange]
+    [onNodePositionChange, isOwner]
   );
 
   const completedCount = inputNodes.filter(
@@ -578,11 +630,10 @@ function BPMNQuestMapInner({
         edges={draggableEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        nodesDraggable={true}
-        onNodesChange={onNodesChange}
-        onNodeDragStop={onNodeDragStop}
-        fitView
-        fitViewOptions={{ padding: 0.3 }}
+        nodesDraggable={isOwner}
+        onNodesChange={isOwner ? onNodesChange : undefined}
+        onNodeDragStop={isOwner ? onNodeDragStop : undefined}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
         minZoom={0.3}
         maxZoom={2}
         defaultEdgeOptions={{
@@ -624,34 +675,72 @@ function BPMNQuestMapInner({
           </div>
         </Panel>
 
-        {/* Controls */}
-        <Controls
-          className="!bg-black/50 !border-white/20 !rounded-xl"
-          showInteractive={false}
-        />
-
-        {/* Mini Map */}
-        <MiniMap
-          className="!bg-black/50 !border-white/20 !rounded-xl"
-          nodeColor={(node) => {
-            if (node.id === "start" || node.id === "end")
-              return theme.pathColor;
-            const status = (node.data as { status?: string })?.status;
-            if (status === "completed") return "#22c55e";
-            if (status === "active") return "#f59e0b";
-            return "#374151";
-          }}
-          maskColor="rgba(0,0,0,0.8)"
-        />
+        {/* MiniMap + Controls - Bottom Left (above visitor bar, below community pulse) */}
+        <Panel position="bottom-left" className="!mb-36 !ml-4">
+          <div className="flex flex-col gap-2">
+            {/* Zoom Controls */}
+            <div className="bg-slate-900/90 backdrop-blur-sm border border-white/20 rounded-xl overflow-hidden">
+              <Controls
+                className="!bg-transparent !border-0 !m-0 !p-0 !static !shadow-none [&>button]:!w-8 [&>button]:!h-8 [&>button]:!bg-transparent [&>button]:hover:!bg-white/10 [&>button]:!border-0"
+                showInteractive={false}
+                orientation="horizontal"
+              />
+            </div>
+            {/* MiniMap */}
+            <div className="bg-slate-900/90 backdrop-blur-sm border border-white/20 rounded-xl overflow-hidden">
+              <MiniMap
+                className="!border-0 !m-0 !static !rounded-none"
+                style={{ width: 160, height: 100, background: "#1e293b" }}
+                nodeColor={(node) => {
+                  if (node.id === "start" || node.id === "end") return theme.pathColor;
+                  const status = (node.data as { status?: string })?.status;
+                  if (status === "completed") return "#22c55e";
+                  if (status === "active") return "#f59e0b";
+                  return "#64748b";
+                }}
+                maskColor="rgba(30, 41, 59, 0.7)"
+                pannable
+                zoomable
+              />
+            </div>
+          </div>
+        </Panel>
 
         {/* Instructions Panel */}
         <Panel position="bottom-center">
           <div className="flex items-center gap-4 text-gray-400 text-sm bg-black/50 px-6 py-3 rounded-full backdrop-blur-sm border border-white/10">
-            <span>📦 Drag nodes to reposition</span>
+            {isOwner && <span>Drag nodes to reposition</span>}
+            {isOwner && <span className="text-white/30">|</span>}
+            <span>Drag background to pan</span>
             <span className="text-white/30">|</span>
-            <span>🖱️ Drag background to pan</span>
-            <span className="text-white/30">|</span>
-            <span>⚙️ Scroll to zoom</span>
+            <span>Scroll to zoom</span>
+            {/* Save indicator */}
+            {(isSaving || saveSuccess) && (
+              <>
+                <span className="text-white/30">|</span>
+                <motion.span
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  className={`flex items-center gap-1.5 ${saveSuccess ? "text-emerald-400" : "text-amber-400"}`}
+                >
+                  {isSaving ? (
+                    <>
+                      <motion.span
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                        className="inline-block w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full"
+                      />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Saved</span>
+                    </>
+                  )}
+                </motion.span>
+              </>
+            )}
           </div>
         </Panel>
       </ReactFlow>
