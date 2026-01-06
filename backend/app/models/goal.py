@@ -44,6 +44,10 @@ class Goal(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Mood indicator (Issue #67)
+    current_mood: Mapped[str] = mapped_column(String(50), nullable=True)
+    mood_updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
     # Relationships
     user = relationship("User", back_populates="goals")
     nodes = relationship("Node", back_populates="goal", lazy="selectin", order_by="Node.order")

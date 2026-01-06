@@ -5,8 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, delete
 from app.database import get_db
 from app.api.deps import get_current_user, get_optional_user
-from app.schemas.goal import GoalCreate, GoalUpdate, GoalResponse, GoalListResponse
+from datetime import datetime
+from app.schemas.goal import GoalCreate, GoalUpdate, GoalResponse, GoalListResponse, MoodUpdate
 from app.schemas.node import NodeResponse
+from app.schemas.follow import TravelerResponse, TravelersListResponse
 from app.models.goal import Goal, GoalVisibility, GoalStatus
 from app.models.goal_share import GoalShare, ShareStatus
 from app.models.node import Node, NodeDependency
@@ -273,6 +275,70 @@ async def patch_goal(
     return goal
 
 
+# Valid mood options
+VALID_MOODS = {"motivated", "confident", "focused", "struggling", "stuck", "celebrating"}
+
+
+@router.put("/{goal_id}/mood", response_model=GoalResponse)
+async def update_goal_mood(
+    goal_id: UUID,
+    mood_data: MoodUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update the mood indicator for a goal.
+
+    Only the goal owner can update their mood.
+    Valid moods: motivated, confident, focused, struggling, stuck, celebrating
+    """
+    result = await db.execute(
+        select(Goal).where(Goal.id == goal_id, Goal.user_id == current_user.id)
+    )
+    goal = result.scalar_one_or_none()
+
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    # Validate mood value
+    if mood_data.mood not in VALID_MOODS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid mood. Must be one of: {', '.join(sorted(VALID_MOODS))}"
+        )
+
+    # Update mood and timestamp
+    goal.current_mood = mood_data.mood
+    goal.mood_updated_at = datetime.utcnow()
+
+    await db.flush()
+    return goal
+
+
+@router.delete("/{goal_id}/mood", response_model=GoalResponse)
+async def clear_goal_mood(
+    goal_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Clear the mood indicator for a goal.
+
+    Only the goal owner can clear their mood.
+    """
+    result = await db.execute(
+        select(Goal).where(Goal.id == goal_id, Goal.user_id == current_user.id)
+    )
+    goal = result.scalar_one_or_none()
+
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    goal.current_mood = None
+    goal.mood_updated_at = None
+
+    await db.flush()
+    return goal
+
+
 @router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_goal(
     goal_id: UUID,
@@ -436,3 +502,68 @@ async def delete_goal(
 
     # Finally delete the goal (shares, prophecies, time_capsules, sacred_boosts, resource_drops cascade via DB)
     await db.delete(goal)
+
+
+@router.get("/{goal_id}/travelers", response_model=TravelersListResponse)
+async def get_goal_travelers(
+    goal_id: UUID,
+    limit: int = Query(10, le=10, description="Max travelers to return (max 10)"),
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get fellow travelers (followers) of a goal for display on the quest map.
+
+    Returns the most recent followers with a limit of 10 for performance.
+    Includes total count and has_more indicator for "and X more" display.
+
+    Issue #66: Fellow Travelers / Progress Visualization
+    """
+    # Verify goal exists and user has access
+    result = await db.execute(select(Goal).where(Goal.id == goal_id))
+    goal = result.scalar_one_or_none()
+
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    has_access = await check_goal_access(goal, current_user, db)
+    if not has_access:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    # Count total followers
+    count_result = await db.execute(
+        select(func.count(Follow.id)).where(
+            Follow.follow_type == FollowType.GOAL,
+            Follow.target_id == goal_id
+        )
+    )
+    total_count = count_result.scalar() or 0
+
+    # Fetch most recent travelers up to limit
+    result = await db.execute(
+        select(Follow, User)
+        .join(User, Follow.follower_id == User.id)
+        .where(
+            Follow.follow_type == FollowType.GOAL,
+            Follow.target_id == goal_id
+        )
+        .order_by(Follow.created_at.desc())
+        .limit(limit)
+    )
+    follows = result.all()
+
+    travelers = [
+        TravelerResponse(
+            id=user.id,
+            username=user.username,
+            display_name=user.display_name,
+            avatar_url=user.avatar_url,
+            followed_at=follow.created_at
+        )
+        for follow, user in follows
+    ]
+
+    return TravelersListResponse(
+        travelers=travelers,
+        total_count=total_count,
+        has_more=total_count > limit
+    )

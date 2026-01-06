@@ -35,9 +35,15 @@ class GoalResponse(BaseModel):
     target_date: Optional[datetime]
     created_at: datetime
     updated_at: datetime
+    current_mood: Optional[str] = None
+    mood_updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class MoodUpdate(BaseModel):
+    mood: str  # One of: motivated, confident, focused, struggling, stuck, celebrating
 
 
 class GoalListResponse(BaseModel):

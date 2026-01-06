@@ -58,3 +58,23 @@ class FollowStats(BaseModel):
 class FollowCheckResponse(BaseModel):
     is_following: bool
     follow_id: Optional[UUID] = None
+
+
+# Traveler schema for fellow travelers feature (Issue #66)
+class TravelerResponse(BaseModel):
+    """Represents a fellow traveler (follower) on a quest."""
+    id: UUID
+    username: str
+    display_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    followed_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TravelersListResponse(BaseModel):
+    """Response for GET /goals/{goal_id}/travelers endpoint."""
+    travelers: list[TravelerResponse]
+    total_count: int
+    has_more: bool

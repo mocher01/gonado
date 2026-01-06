@@ -24,9 +24,11 @@ import {
   CommentInputModal,
   NodeCommentsPanel,
   ResourceDropModal,
+  MoodSelector,
+  MoodSupportAlert,
 } from "@/components/social";
 import type { ElementType } from "@/components/social";
-import type { Goal, Node, ChecklistItem, NodeType } from "@/types";
+import type { Goal, Node, ChecklistItem, NodeType, MoodType } from "@/types";
 
 // Social data types
 interface Follower {
@@ -2096,6 +2098,24 @@ export default function GoalDetailPage() {
     }
   };
 
+  // Handle mood change (Issue #67)
+  const handleMoodChange = async (mood: MoodType | null) => {
+    if (!goal || !isOwner) return;
+    try {
+      let updatedGoal;
+      if (mood) {
+        updatedGoal = await api.updateGoalMood(goal.id, mood);
+        toast.success(`Mood set to ${mood}!`);
+      } else {
+        updatedGoal = await api.clearGoalMood(goal.id);
+        toast.success("Mood cleared");
+      }
+      setGoal(updatedGoal);
+    } catch (err) {
+      toast.error("Failed to update mood");
+    }
+  };
+
   // Loading state
   if (authLoading || loading) {
     return (
@@ -2188,6 +2208,24 @@ export default function GoalDetailPage() {
               </button>
             )}
 
+            {/* Mood Selector (owner only, Issue #67) */}
+            {isOwner && (
+              <MoodSelector
+                currentMood={goal.current_mood}
+                onMoodChange={handleMoodChange}
+                isOwner={true}
+              />
+            )}
+
+            {/* Mood indicator for visitors (when owner has set a mood) */}
+            {!isOwner && goal.current_mood && (
+              <MoodSelector
+                currentMood={goal.current_mood}
+                onMoodChange={() => {}}
+                isOwner={false}
+              />
+            )}
+
             {/* Add Node button (owner only) */}
             {isOwner && (
               <button
@@ -2274,6 +2312,13 @@ export default function GoalDetailPage() {
               totalBoosts={boostData.totalBoosts}
               onViewStats={() => setShowOwnerPanel(true)}
             />
+          )}
+
+          {/* VISITOR VIEW: Mood support alert when owner is struggling/stuck */}
+          {!isOwner && isPublic && (goal.current_mood === "struggling" || goal.current_mood === "stuck") && (
+            <div className="fixed bottom-32 left-4 right-4 z-30 max-w-md mx-auto">
+              <MoodSupportAlert mood={goal.current_mood} />
+            </div>
           )}
 
           {/* VISITOR VIEW: Support bar at bottom */}

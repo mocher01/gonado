@@ -11,6 +11,9 @@ export interface User {
   created_at: string;
 }
 
+// Mood type for Issue #67
+export type MoodType = "motivated" | "confident" | "focused" | "struggling" | "stuck" | "celebrating";
+
 export interface Goal {
   id: string;
   user_id: string;
@@ -23,6 +26,9 @@ export interface Goal {
   target_date: string | null;
   created_at: string;
   updated_at: string;
+  // Mood indicator (Issue #67)
+  current_mood: MoodType | null;
+  mood_updated_at: string | null;
 }
 
 export type NodeType = "task" | "parallel_start" | "parallel_end" | "milestone";

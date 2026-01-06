@@ -199,6 +199,20 @@ class ApiClient {
     return this.fetch<Node[]>(`/goals/${goalId}/nodes`);
   }
 
+  // Mood Indicators (Issue #67)
+  async updateGoalMood(goalId: string, mood: string): Promise<Goal> {
+    return this.fetch<Goal>(`/goals/${goalId}/mood`, {
+      method: "PUT",
+      body: JSON.stringify({ mood }),
+    });
+  }
+
+  async clearGoalMood(goalId: string): Promise<Goal> {
+    return this.fetch<Goal>(`/goals/${goalId}/mood`, {
+      method: "DELETE",
+    });
+  }
+
   // Nodes
   async getNode(id: string): Promise<Node> {
     return this.fetch<Node>(`/nodes/${id}`);
@@ -439,6 +453,25 @@ class ApiClient {
 
   async getGoalFollowers(goalId: string): Promise<any> {
     return this.fetch(`/follows/goals/${goalId}/followers`);
+  }
+
+  /**
+   * Get fellow travelers (followers) of a goal for display on the quest map.
+   * Issue #66: Fellow Travelers / Progress Visualization
+   * Returns the most recent followers with a limit of 10 for performance.
+   */
+  async getGoalTravelers(goalId: string, limit: number = 10): Promise<{
+    travelers: Array<{
+      id: string;
+      username: string;
+      display_name: string | null;
+      avatar_url: string | null;
+      followed_at: string;
+    }>;
+    total_count: number;
+    has_more: boolean;
+  }> {
+    return this.fetch(`/goals/${goalId}/travelers?limit=${Math.min(limit, 10)}`);
   }
 
   async checkFollowStatus(followType: "user" | "goal", targetId: string): Promise<{ is_following: boolean }> {

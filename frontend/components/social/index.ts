@@ -10,6 +10,7 @@ export type { ElementType } from "./ElementalReactions";
 export { TrailMarkers, TrailMarkerBadge, QuickCommentInput } from "./TrailMarkers";
 
 export { FellowTravelers, FellowTravelersCompact, TravelersOnPath } from "./FellowTravelers";
+export type { Traveler } from "./FellowTravelers";
 
 export { QuestChronicle, QuestChronicleCompact } from "./QuestChronicle";
 
@@ -30,3 +31,7 @@ export { ResourceDropModal } from "./ResourceDropModal";
 
 // Comments Panel (for viewing all comments)
 export { NodeCommentsPanel } from "./NodeCommentsPanel";
+
+// Mood Indicators (Issue #67)
+export { MoodSelector, MoodBadge, MoodSupportAlert, MOOD_OPTIONS } from "./MoodSelector";
+export type { MoodOption } from "./MoodSelector";
