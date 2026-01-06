@@ -709,6 +709,125 @@ class ApiClient {
       method: "POST",
     });
   }
+
+  // ============================================
+  // SWAP FEATURE
+  // ============================================
+
+  /**
+   * Propose a swap to another user.
+   * The proposer offers one of their goals for an accountability partnership.
+   */
+  async proposeSwap(
+    receiverId: string,
+    proposerGoalId: string,
+    message?: string
+  ): Promise<{
+    id: string;
+    proposer_id: string;
+    receiver_id: string;
+    proposer_goal_id: string;
+    receiver_goal_id: string | null;
+    status: "pending" | "accepted" | "declined" | "cancelled" | "completed";
+    message: string | null;
+    created_at: string;
+    updated_at: string;
+  }> {
+    return this.fetch("/swaps", {
+      method: "POST",
+      body: JSON.stringify({
+        receiver_id: receiverId,
+        proposer_goal_id: proposerGoalId,
+        message: message || null,
+      }),
+    });
+  }
+
+  /**
+   * Get all swaps for the current user (both sent and received).
+   * Returns swaps in all statuses: pending, accepted, declined, cancelled, completed.
+   */
+  async getMySwaps(): Promise<{
+    swaps: Array<{
+      id: string;
+      proposer: {
+        id: string;
+        username: string;
+        display_name: string | null;
+        avatar_url: string | null;
+      };
+      receiver: {
+        id: string;
+        username: string;
+        display_name: string | null;
+        avatar_url: string | null;
+      };
+      proposer_goal: {
+        id: string;
+        title: string;
+        world_theme: string;
+      };
+      receiver_goal: {
+        id: string;
+        title: string;
+        world_theme: string;
+      } | null;
+      status: "pending" | "accepted" | "declined" | "cancelled" | "completed";
+      message: string | null;
+      created_at: string;
+      updated_at: string;
+    }>;
+    total: number;
+  }> {
+    return this.fetch("/swaps");
+  }
+
+  /**
+   * Accept a swap proposal.
+   * The receiver must select one of their goals to offer in return.
+   */
+  async acceptSwap(
+    swapId: string,
+    receiverGoalId: string
+  ): Promise<{
+    id: string;
+    status: "accepted";
+    receiver_goal_id: string;
+    updated_at: string;
+  }> {
+    return this.fetch(`/swaps/${swapId}/accept`, {
+      method: "POST",
+      body: JSON.stringify({ receiver_goal_id: receiverGoalId }),
+    });
+  }
+
+  /**
+   * Decline a swap proposal.
+   * Only the receiver can decline a pending swap.
+   */
+  async declineSwap(swapId: string): Promise<{
+    id: string;
+    status: "declined";
+    updated_at: string;
+  }> {
+    return this.fetch(`/swaps/${swapId}/decline`, {
+      method: "POST",
+    });
+  }
+
+  /**
+   * Cancel a swap proposal.
+   * Only the proposer can cancel a pending swap they sent.
+   */
+  async cancelSwap(swapId: string): Promise<{
+    id: string;
+    status: "cancelled";
+    updated_at: string;
+  }> {
+    return this.fetch(`/swaps/${swapId}/cancel`, {
+      method: "POST",
+    });
+  }
 }
 
 export const api = new ApiClient();

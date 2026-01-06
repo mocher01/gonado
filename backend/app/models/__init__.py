@@ -16,6 +16,7 @@ from app.models.prophecy import Prophecy
 from app.models.time_capsule import TimeCapsule, CapsuleTriggerType
 from app.models.resource_drop import ResourceDrop
 from app.models.sacred_boost import SacredBoost
+from app.models.swap import Swap, SwapStatus
 
 __all__ = [
     "User",
@@ -36,4 +37,5 @@ __all__ = [
     "TimeCapsule", "CapsuleTriggerType",
     "ResourceDrop",
     "SacredBoost",
+    "Swap", "SwapStatus",
 ]
