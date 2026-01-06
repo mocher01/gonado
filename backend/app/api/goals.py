@@ -6,7 +6,9 @@ from sqlalchemy import select, func, or_, delete
 from app.database import get_db
 from app.api.deps import get_current_user, get_optional_user
 from datetime import datetime
-from app.schemas.goal import GoalCreate, GoalUpdate, GoalResponse, GoalListResponse, MoodUpdate
+from app.schemas.goal import GoalCreate, GoalUpdate, GoalResponse, GoalListResponse, MoodUpdate, StruggleStatusResponse
+from datetime import timedelta
+from app.models.interaction import InteractionType
 from app.schemas.node import NodeResponse
 from app.schemas.follow import TravelerResponse, TravelersListResponse
 from app.models.goal import Goal, GoalVisibility, GoalStatus
@@ -567,3 +569,191 @@ async def get_goal_travelers(
         total_count=total_count,
         has_more=total_count > limit
     )
+
+
+# Struggle detection thresholds
+STRUGGLE_REACTION_THRESHOLD = 3  # Number of mark-struggle reactions to trigger
+STRUGGLING_MOODS = {"struggling", "stuck"}
+
+
+@router.get("/{goal_id}/struggle-status", response_model=StruggleStatusResponse)
+async def get_struggle_status(
+    goal_id: UUID,
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get struggle detection status for a goal.
+
+    Checks all struggle signals:
+    1. Mood set to "Struggling" or "Stuck" (owner-set)
+    2. Multiple "mark-struggle" coaching reactions on nodes (3+ reactions)
+    3. No progress for X days (configurable, default 7 days)
+    4. High-difficulty node with long dwell time (>14 days on hard/nightmare)
+
+    Issue #68: Struggle Detection System
+    """
+    # Get goal
+    result = await db.execute(select(Goal).where(Goal.id == goal_id))
+    goal = result.scalar_one_or_none()
+
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    # Check visibility
+    has_access = await check_goal_access(goal, current_user, db)
+    if not has_access:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    # Initialize response
+    signals = []
+    mood_signal = False
+    reaction_signal = False
+    no_progress_signal = False
+    hard_node_signal = False
+    last_activity_at = None
+    days_since_progress = None
+    struggle_reactions_count = 0
+
+    # 1. Check mood signal (highest priority)
+    if goal.current_mood and goal.current_mood.lower() in STRUGGLING_MOODS:
+        mood_signal = True
+        signals.append(f"mood:{goal.current_mood}")
+
+    # 2. Check mark-struggle reactions across all nodes
+    node_result = await db.execute(
+        select(Node.id).where(Node.goal_id == goal_id)
+    )
+    node_ids = [row[0] for row in node_result.fetchall()]
+
+    if node_ids:
+        # Count mark-struggle reactions on all nodes
+        reaction_result = await db.execute(
+            select(func.count(Interaction.id))
+            .where(
+                Interaction.target_type == TargetType.NODE,
+                Interaction.target_id.in_(node_ids),
+                Interaction.interaction_type == InteractionType.REACTION,
+                Interaction.reaction_type == "mark-struggle"
+            )
+        )
+        struggle_reactions_count = reaction_result.scalar() or 0
+
+        if struggle_reactions_count >= STRUGGLE_REACTION_THRESHOLD:
+            reaction_signal = True
+            signals.append(f"reactions:{struggle_reactions_count}")
+
+    # 3. Check for no progress (last completed node or update)
+    no_progress_threshold = goal.no_progress_threshold_days or 7
+
+    # Find last activity: most recent completed node or update
+    last_completed_result = await db.execute(
+        select(func.max(Node.completed_at))
+        .where(Node.goal_id == goal_id, Node.completed_at.isnot(None))
+    )
+    last_completed = last_completed_result.scalar()
+
+    # Also check last update on any node
+    if node_ids:
+        last_update_result = await db.execute(
+            select(func.max(Update.created_at))
+            .where(Update.node_id.in_(node_ids))
+        )
+        last_update = last_update_result.scalar()
+    else:
+        last_update = None
+
+    # Use most recent activity
+    if last_completed and last_update:
+        last_activity_at = max(last_completed, last_update)
+    elif last_completed:
+        last_activity_at = last_completed
+    elif last_update:
+        last_activity_at = last_update
+    else:
+        # No activity, use goal creation date
+        last_activity_at = goal.created_at
+
+    # Calculate days since progress
+    if last_activity_at:
+        days_since_progress = (datetime.utcnow() - last_activity_at).days
+        if days_since_progress >= no_progress_threshold:
+            no_progress_signal = True
+            signals.append(f"no_progress:{days_since_progress}d")
+
+    # 4. Check for high-difficulty node with long dwell time
+    hard_node_threshold = goal.hard_node_threshold_days or 14
+
+    # Find active nodes with difficulty >= 4 (hard/nightmare)
+    hard_node_result = await db.execute(
+        select(Node)
+        .where(
+            Node.goal_id == goal_id,
+            Node.status == "active",
+            Node.difficulty >= 4,  # 4 = hard, 5 = nightmare
+            Node.completed_at.is_(None)
+        )
+    )
+    hard_nodes = hard_node_result.scalars().all()
+
+    for node in hard_nodes:
+        # Calculate how long node has been active
+        node_age_days = (datetime.utcnow() - node.created_at).days
+        if node_age_days >= hard_node_threshold:
+            hard_node_signal = True
+            signals.append(f"hard_node:{node.title[:30]}:{node_age_days}d")
+            break  # One is enough to trigger
+
+    # Determine if struggling
+    is_struggling = mood_signal or reaction_signal or no_progress_signal or hard_node_signal
+
+    # Update struggle_detected_at if newly detected
+    if is_struggling and not goal.struggle_detected_at:
+        goal.struggle_detected_at = datetime.utcnow()
+        await db.flush()
+    elif not is_struggling and goal.struggle_detected_at:
+        # Clear detection if no longer struggling
+        goal.struggle_detected_at = None
+        goal.struggle_dismissed_at = None
+        await db.flush()
+
+    return StruggleStatusResponse(
+        goal_id=goal.id,
+        is_struggling=is_struggling,
+        signals=signals,
+        struggle_detected_at=goal.struggle_detected_at,
+        mood_signal=mood_signal,
+        reaction_signal=reaction_signal,
+        no_progress_signal=no_progress_signal,
+        hard_node_signal=hard_node_signal,
+        last_activity_at=last_activity_at,
+        days_since_progress=days_since_progress,
+        struggle_reactions_count=struggle_reactions_count
+    )
+
+
+@router.post("/{goal_id}/dismiss-struggle", response_model=GoalResponse)
+async def dismiss_struggle_alert(
+    goal_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Dismiss the auto-detected struggle alert.
+
+    Only the goal owner can dismiss alerts. This only affects
+    auto-detected signals (reactions, no progress, hard node).
+    Mood-based signals can be changed via the mood selector.
+
+    Issue #68: Struggle Detection System
+    """
+    result = await db.execute(
+        select(Goal).where(Goal.id == goal_id, Goal.user_id == current_user.id)
+    )
+    goal = result.scalar_one_or_none()
+
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    goal.struggle_dismissed_at = datetime.utcnow()
+    await db.flush()
+
+    return goal

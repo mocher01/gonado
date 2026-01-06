@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import String, DateTime, Text, ForeignKey, Enum as SQLEnum
+from sqlalchemy import String, DateTime, Text, ForeignKey, Enum as SQLEnum, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.database import Base
@@ -47,6 +47,12 @@ class Goal(Base):
     # Mood indicator (Issue #67)
     current_mood: Mapped[str] = mapped_column(String(50), nullable=True)
     mood_updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    # Struggle detection (Issue #68)
+    struggle_detected_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    struggle_dismissed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    no_progress_threshold_days: Mapped[int] = mapped_column(Integer, default=7, nullable=True)
+    hard_node_threshold_days: Mapped[int] = mapped_column(Integer, default=14, nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="goals")

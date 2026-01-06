@@ -35,3 +35,7 @@ export { NodeCommentsPanel } from "./NodeCommentsPanel";
 // Mood Indicators (Issue #67)
 export { MoodSelector, MoodBadge, MoodSupportAlert, MOOD_OPTIONS } from "./MoodSelector";
 export type { MoodOption } from "./MoodSelector";
+
+// Struggle Detection (Issue #68)
+export { StruggleBadge, StruggleSupportAlert } from "./StruggleBadge";
+export type { StruggleStatus } from "./StruggleBadge";

@@ -1,21 +1,63 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/Card";
+import { MobileFeed, SwipeIndicator } from "@/components/mobile";
 import type { Goal } from "@/types";
+
+/**
+ * DiscoverPage - Browse Public Goals (Issue #69)
+ * ==============================================
+ *
+ * Shows public goals with responsive layouts:
+ * - Mobile: TikTok-style vertical swipe feed
+ * - Desktop: Traditional grid layout
+ */
+
+// Custom hook for viewport detection
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    // Check on mount
+    checkMobile();
+
+    // Listen for resize
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  return isMobile;
+}
 
 export default function DiscoverPage() {
   const { user, isAuthenticated, logout } = useAuth(false); // Don't require auth
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
+  const isMobile = useIsMobile();
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
 
   useEffect(() => {
     loadGoals();
   }, []);
+
+  // Show swipe hint on mobile after goals load
+  useEffect(() => {
+    if (isMobile && goals.length > 1 && !loading) {
+      const hintShown = localStorage.getItem("discover-swipe-hint-shown");
+      if (!hintShown) {
+        setShowSwipeHint(true);
+      }
+    }
+  }, [isMobile, goals.length, loading]);
 
   const loadGoals = async () => {
     try {
@@ -28,20 +70,99 @@ export default function DiscoverPage() {
     }
   };
 
-  const getCategoryIcon = (category: string | null) => {
-    const icons: Record<string, string> = {
-      health: "💪",
-      career: "💼",
-      education: "📚",
-      finance: "💰",
-      relationships: "❤️",
-      creativity: "🎨",
-      personal: "🌱",
-      other: "✨",
-    };
-    return icons[category || "other"] || "🎯";
+  const handleRefresh = useCallback(async () => {
+    await loadGoals();
+  }, []);
+
+  const handleDismissSwipeHint = () => {
+    setShowSwipeHint(false);
+    localStorage.setItem("discover-swipe-hint-shown", "true");
   };
 
+  const getCategoryIcon = (category: string | null) => {
+    const icons: Record<string, string> = {
+      health: "*",
+      career: "*",
+      education: "*",
+      finance: "*",
+      relationships: "*",
+      creativity: "*",
+      personal: "*",
+      other: "*",
+    };
+    return icons[category || "other"] || "*";
+  };
+
+  // Mobile View - TikTok-style swipe feed
+  if (isMobile) {
+    return (
+      <>
+        {/* Swipe indicator hint */}
+        {showSwipeHint && (
+          <SwipeIndicator
+            direction="vertical"
+            visible={showSwipeHint}
+            onDismiss={handleDismissSwipeHint}
+            storageKey="discover-swipe-hint-shown"
+          />
+        )}
+
+        {/* Mobile header overlay */}
+        <div className="fixed top-0 left-0 right-0 z-20 bg-gradient-to-b from-slate-900/90 to-transparent">
+          <header className="px-4 py-3 flex items-center justify-between">
+            <Link
+              href="/"
+              className="text-xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent"
+            >
+              Gonado
+            </Link>
+            <nav className="flex items-center gap-3">
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    href="/dashboard"
+                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={logout}
+                    className="px-3 py-1.5 rounded-lg bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition-all"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-primary-500 to-accent-500 text-white text-sm font-medium"
+                  >
+                    Join
+                  </Link>
+                </>
+              )}
+            </nav>
+          </header>
+        </div>
+
+        {/* Mobile feed */}
+        <MobileFeed
+          goals={goals}
+          onRefresh={handleRefresh}
+          isLoading={loading}
+        />
+      </>
+    );
+  }
+
+  // Desktop View - Traditional grid
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
@@ -110,7 +231,7 @@ export default function DiscoverPage() {
           </div>
         ) : goals.length === 0 ? (
           <Card variant="glass" className="text-center py-16">
-            <div className="text-6xl mb-4">🌟</div>
+            <div className="text-6xl mb-4">*</div>
             <h3 className="text-xl font-semibold text-white mb-2">
               No public goals yet
             </h3>
@@ -171,7 +292,7 @@ export default function DiscoverPage() {
                         )}
                         {goal.target_date && (
                           <p className="text-gray-500 text-xs mt-2 flex items-center gap-1">
-                            <span>🎯</span>
+                            <span>*</span>
                             <span>
                               {new Date(goal.target_date).toLocaleDateString()}
                             </span>

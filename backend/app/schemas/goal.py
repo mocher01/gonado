@@ -37,9 +37,29 @@ class GoalResponse(BaseModel):
     updated_at: datetime
     current_mood: Optional[str] = None
     mood_updated_at: Optional[datetime] = None
+    # Struggle detection (Issue #68)
+    struggle_detected_at: Optional[datetime] = None
+    struggle_dismissed_at: Optional[datetime] = None
+    no_progress_threshold_days: Optional[int] = 7
+    hard_node_threshold_days: Optional[int] = 14
 
     class Config:
         from_attributes = True
+
+
+class StruggleStatusResponse(BaseModel):
+    """Response for struggle status endpoint (Issue #68)"""
+    goal_id: UUID
+    is_struggling: bool
+    signals: List[str]  # List of active struggle signals
+    struggle_detected_at: Optional[datetime] = None
+    mood_signal: bool = False  # True if mood is struggling/stuck
+    reaction_signal: bool = False  # True if 3+ mark-struggle reactions
+    no_progress_signal: bool = False  # True if no progress for X days
+    hard_node_signal: bool = False  # True if stuck on hard node for X days
+    last_activity_at: Optional[datetime] = None  # When last progress was made
+    days_since_progress: Optional[int] = None
+    struggle_reactions_count: int = 0  # Number of mark-struggle reactions
 
 
 class MoodUpdate(BaseModel):

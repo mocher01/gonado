@@ -6,12 +6,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { BPMNQuestMap } from "@/components/quest-map";
 import { NodeFormModal } from "@/components/quest-map/NodeFormModal";
 import { EditGoalModal } from "@/components/goals/EditGoalModal";
+import { NodeCarousel, SwipeIndicator } from "@/components/mobile";
 import {
   ElementalReactions,
   ElementalReactionsInline,
@@ -26,7 +28,10 @@ import {
   ResourceDropModal,
   MoodSelector,
   MoodSupportAlert,
+  StruggleBadge,
+  StruggleSupportAlert,
 } from "@/components/social";
+import type { StruggleStatus } from "@/components/social";
 import type { ElementType } from "@/components/social";
 import type { Goal, Node, ChecklistItem, NodeType, MoodType } from "@/types";
 
@@ -1235,6 +1240,7 @@ export default function GoalDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user, isLoading: authLoading, logout } = useAuth(false);
+  const isMobile = useIsMobile();
   const [goal, setGoal] = useState<Goal | null>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1245,6 +1251,7 @@ export default function GoalDetailPage() {
   const [editingNode, setEditingNode] = useState<Node | null>(null);
   const [isNodeModalOpen, setIsNodeModalOpen] = useState(false);
   const [nodeModalMode, setNodeModalMode] = useState<"create" | "edit">("create");
+  const [showMobileSwipeHint, setShowMobileSwipeHint] = useState(false);
 
   // Social state
   const [followers, setFollowers] = useState<Follower[]>([]);
@@ -1303,6 +1310,9 @@ export default function GoalDetailPage() {
   const [showEditGoalModal, setShowEditGoalModal] = useState(false);
   const [editGoalLoading, setEditGoalLoading] = useState(false);
 
+  // Struggle detection state (Issue #68)
+  const [struggleStatus, setStruggleStatus] = useState<StruggleStatus | null>(null);
+
   const goalId = params.id as string;
   const isOwner = user && goal && user.id === goal.user_id;
   const isPublic = goal?.visibility === "public";
@@ -1310,6 +1320,21 @@ export default function GoalDetailPage() {
   useEffect(() => {
     if (goalId) loadGoal();
   }, [goalId]);
+
+  // Show mobile swipe hint on first visit (Issue #69)
+  useEffect(() => {
+    if (isMobile && nodes.length > 1 && !loading) {
+      const hintShown = localStorage.getItem("goal-carousel-swipe-hint-shown");
+      if (!hintShown) {
+        setShowMobileSwipeHint(true);
+      }
+    }
+  }, [isMobile, nodes.length, loading]);
+
+  const handleDismissMobileSwipeHint = () => {
+    setShowMobileSwipeHint(false);
+    localStorage.setItem("goal-carousel-swipe-hint-shown", "true");
+  };
 
   // Re-check follow status when user becomes available
   useEffect(() => {
@@ -1349,6 +1374,7 @@ export default function GoalDetailPage() {
         propheciesData,
         boostsData,
         nodesSocialData,
+        struggleStatusData,
       ] = await Promise.all([
         api.getGoalFollowers(goalId).catch(() => ({ followers: [], total: 0 })),
         api.getReactions("goal", goalId).catch(() => ({ counts: {}, user_reaction: null })),
@@ -1357,6 +1383,7 @@ export default function GoalDetailPage() {
         api.getProphecyBoard(goalId).catch(() => ({ prophecies: [] })),
         api.getGoalBoosts(goalId).catch(() => ({ boosts: [], total: 0 })),
         api.getGoalNodesSocialSummary(goalId).catch(() => ({ nodes: {} })),
+        api.getStruggleStatus(goalId).catch(() => null),
       ]);
 
       // Set node social data for the quest map
@@ -1444,6 +1471,9 @@ export default function GoalDetailPage() {
         alreadyBoosted: false, // Will be updated from check endpoint
         boostsRemaining: 3,
       });
+
+      // Set struggle status (Issue #68)
+      setStruggleStatus(struggleStatusData);
 
       if (user) {
         try {
@@ -2111,8 +2141,27 @@ export default function GoalDetailPage() {
         toast.success("Mood cleared");
       }
       setGoal(updatedGoal);
+      // Refresh struggle status after mood change
+      try {
+        const status = await api.getStruggleStatus(goal.id);
+        setStruggleStatus(status);
+      } catch { /* ignore */ }
     } catch (err) {
       toast.error("Failed to update mood");
+    }
+  };
+
+  // Handle struggle alert dismissal (Issue #68)
+  const handleDismissStruggle = async () => {
+    if (!goal || !isOwner) return;
+    try {
+      await api.dismissStruggleAlert(goal.id);
+      toast.success("Struggle alert dismissed");
+      // Refresh struggle status
+      const status = await api.getStruggleStatus(goal.id);
+      setStruggleStatus(status);
+    } catch (err) {
+      toast.error("Failed to dismiss alert");
     }
   };
 
@@ -2145,9 +2194,145 @@ export default function GoalDetailPage() {
 
   if (!goal) return null;
 
+  // Handle node selection from mobile carousel (Issue #69)
+  const handleMobileNodeSelect = (node: Node) => {
+    setSelectedNode(node);
+  };
+
+  const handleMobileNodeInteract = (node: Node) => {
+    if (isOwner) {
+      handleNodeEdit(node.id);
+    } else if (isPublic) {
+      handleNodeClick(node, { x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    }
+  };
+
+  // Mobile View - Node Carousel (Issue #69)
+  if (isMobile && nodes.length > 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        {/* Mobile Swipe Hint */}
+        {showMobileSwipeHint && (
+          <SwipeIndicator
+            direction="horizontal"
+            visible={showMobileSwipeHint}
+            onDismiss={handleDismissMobileSwipeHint}
+            storageKey="goal-carousel-swipe-hint-shown"
+          />
+        )}
+
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-10 flex flex-col">
+          {/* Mobile header */}
+          <div className="flex-shrink-0 px-4 py-3 flex items-center justify-between bg-black/30 backdrop-blur-sm">
+            <Link
+              href={user ? "/dashboard" : "/discover"}
+              className="flex items-center gap-2 text-white"
+            >
+              <span>x</span>
+              <span className="text-sm font-medium truncate max-w-[150px]">{goal.title}</span>
+            </Link>
+            <div className="flex items-center gap-2">
+              {isOwner && (
+                <button
+                  onClick={handleAddNode}
+                  className="p-2 rounded-full bg-emerald-500/30 text-emerald-300"
+                  data-testid="mobile-add-node-btn"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              )}
+              <AuthHeader user={user} isLoading={authLoading} onLogout={logout} />
+            </div>
+          </div>
+
+          {/* Node Carousel */}
+          <div className="flex-1 overflow-hidden" data-testid="mobile-node-carousel">
+            <NodeCarousel
+              nodes={nodes}
+              currentNodeId={selectedNode?.id}
+              onNodeSelect={handleMobileNodeSelect}
+              onNodeInteract={handleMobileNodeInteract}
+            />
+          </div>
+
+          {/* Mobile bottom actions for visitors */}
+          {!isOwner && isPublic && (
+            <div className="flex-shrink-0 px-4 py-3 bg-black/50 backdrop-blur-sm border-t border-white/10">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={handleFollow}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+                    isFollowing
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                      : "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                  }`}
+                >
+                  <span>{isFollowing ? "." : "."}</span>
+                  <span>{isFollowing ? "Following" : "Follow"}</span>
+                </button>
+                <div className="flex items-center gap-4 text-sm text-slate-400">
+                  <span>. {followers.length}</span>
+                  <span>. {boostData.totalBoosts}</span>
+                </div>
+                <button
+                  onClick={() => setShowVisitorPanel(true)}
+                  className="p-2 rounded-full bg-white/10 text-white"
+                >
+                  <span>.</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Modals and panels for mobile */}
+        <VisitorSupportPanel
+          isOpen={showVisitorPanel}
+          onClose={() => setShowVisitorPanel(false)}
+          goalId={goalId}
+          goalTitle={goal.title}
+          goalCreatedAt={goal.created_at}
+          goalCompleted={goal.status === "completed"}
+          goalCompletedAt={goal.updated_at}
+          followers={followers}
+          isFollowing={isFollowing}
+          onFollow={handleFollow}
+          reactions={reactions}
+          userReaction={userReaction}
+          onReact={handleReaction}
+          boostData={boostData}
+          onBoost={handleBoost}
+          comments={comments}
+          onAddComment={handleAddComment}
+          prophecies={prophecies}
+          userProphecy={userProphecy}
+          onMakeProphecy={handleMakeProphecy}
+          activities={activities}
+          disabled={!user}
+        />
+
+        {/* Node Form Modal */}
+        <NodeFormModal
+          node={editingNode}
+          isOpen={isNodeModalOpen}
+          onClose={() => {
+            setIsNodeModalOpen(false);
+            setEditingNode(null);
+          }}
+          onSave={handleNodeFormSave}
+          onDelete={nodeModalMode === "edit" ? handleNodeDelete : undefined}
+          mode={nodeModalMode}
+          nodeCount={nodes.length}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Quest Map - Full Screen */}
+      {/* Quest Map - Full Screen (Desktop) */}
       {nodes.length > 0 ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-10">
           <BPMNQuestMap
@@ -2223,6 +2408,15 @@ export default function GoalDetailPage() {
                 currentMood={goal.current_mood}
                 onMoodChange={() => {}}
                 isOwner={false}
+              />
+            )}
+
+            {/* Struggle Badge (Issue #68) - shows when goal needs support */}
+            {isPublic && struggleStatus?.is_struggling && (
+              <StruggleBadge
+                status={struggleStatus}
+                isOwner={!!isOwner}
+                onDismiss={isOwner ? handleDismissStruggle : undefined}
               />
             )}
 
@@ -2314,10 +2508,13 @@ export default function GoalDetailPage() {
             />
           )}
 
-          {/* VISITOR VIEW: Mood support alert when owner is struggling/stuck */}
-          {!isOwner && isPublic && (goal.current_mood === "struggling" || goal.current_mood === "stuck") && (
+          {/* VISITOR VIEW: Struggle support alert when goal needs help (Issue #68) */}
+          {!isOwner && isPublic && struggleStatus?.is_struggling && (
             <div className="fixed bottom-32 left-4 right-4 z-30 max-w-md mx-auto">
-              <MoodSupportAlert mood={goal.current_mood} />
+              <StruggleSupportAlert
+                status={struggleStatus}
+                isOwner={false}
+              />
             </div>
           )}
 

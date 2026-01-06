@@ -686,6 +686,29 @@ class ApiClient {
   }> {
     return this.fetch(`/nodes/goal/${goalId}/social-summary`);
   }
+
+  // Struggle Detection (Issue #68)
+  async getStruggleStatus(goalId: string): Promise<{
+    goal_id: string;
+    is_struggling: boolean;
+    signals: string[];
+    struggle_detected_at: string | null;
+    mood_signal: boolean;
+    reaction_signal: boolean;
+    no_progress_signal: boolean;
+    hard_node_signal: boolean;
+    last_activity_at: string | null;
+    days_since_progress: number | null;
+    struggle_reactions_count: number;
+  }> {
+    return this.fetch(`/goals/${goalId}/struggle-status`);
+  }
+
+  async dismissStruggleAlert(goalId: string): Promise<Goal> {
+    return this.fetch<Goal>(`/goals/${goalId}/dismiss-struggle`, {
+      method: "POST",
+    });
+  }
 }
 
 export const api = new ApiClient();
