@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 from app.models.activity import Activity, ActivityType, ActivityTargetType
 from app.models.follow import Follow, FollowType
@@ -74,17 +74,13 @@ class ActivityService:
         )
 
         # Count total
-        count_query = select(Activity).where(
-            Activity.is_public == True,
-            or_(*conditions)
-        )
         count_result = await db.execute(
-            select(Activity.id).where(
+            select(func.count(Activity.id)).where(
                 Activity.is_public == True,
                 or_(*conditions)
             )
         )
-        total = len(count_result.all())
+        total = count_result.scalar_one()
 
         # Fetch with pagination
         query = query.offset(offset).limit(limit)
@@ -112,13 +108,11 @@ class ActivityService:
             query = query.where(Activity.is_public == True)
 
         # Count
-        count_query = select(Activity).where(Activity.user_id == user_id)
+        count_query = select(func.count(Activity.id)).where(Activity.user_id == user_id)
         if public_only:
             count_query = count_query.where(Activity.is_public == True)
-        count_result = await db.execute(
-            select(Activity.id).where(Activity.user_id == user_id)
-        )
-        total = len(count_result.all())
+        count_result = await db.execute(count_query)
+        total = count_result.scalar_one()
 
         # Fetch
         query = query.order_by(Activity.created_at.desc()).offset(offset).limit(limit)
@@ -148,13 +142,13 @@ class ActivityService:
 
         # Count
         count_result = await db.execute(
-            select(Activity.id).where(
+            select(func.count(Activity.id)).where(
                 Activity.target_type == ActivityTargetType.GOAL,
                 Activity.target_id == goal_id,
                 Activity.is_public == True
             )
         )
-        total = len(count_result.all())
+        total = count_result.scalar_one()
 
         # Fetch
         query = query.offset(offset).limit(limit)

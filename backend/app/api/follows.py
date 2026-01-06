@@ -131,7 +131,30 @@ async def get_user_following(
         .limit(limit)
     )
     follows = result.scalars().all()
-    
+
+    # Collect target IDs by type to batch fetch
+    user_ids = [f.target_id for f in follows if f.follow_type == FollowType.USER]
+    goal_ids = [f.target_id for f in follows if f.follow_type == FollowType.GOAL]
+
+    # Batch fetch all users
+    users_map = {}
+    if user_ids:
+        users_result = await db.execute(
+            select(User).where(User.id.in_(user_ids))
+        )
+        users = users_result.scalars().all()
+        users_map = {u.id: u for u in users}
+
+    # Batch fetch all goals
+    goals_map = {}
+    if goal_ids:
+        goals_result = await db.execute(
+            select(Goal).where(Goal.id.in_(goal_ids))
+        )
+        goals = goals_result.scalars().all()
+        goals_map = {g.id: g for g in goals}
+
+    # Build responses
     responses = []
     for follow in follows:
         response_data = {
@@ -141,22 +164,20 @@ async def get_user_following(
             "target_id": follow.target_id,
             "created_at": follow.created_at,
         }
-        
+
         if follow.follow_type == FollowType.USER:
-            user_result = await db.execute(select(User).where(User.id == follow.target_id))
-            target_user = user_result.scalar_one_or_none()
+            target_user = users_map.get(follow.target_id)
             if target_user:
                 response_data["target_username"] = target_user.username
                 response_data["target_display_name"] = target_user.display_name
                 response_data["target_avatar_url"] = target_user.avatar_url
         elif follow.follow_type == FollowType.GOAL:
-            goal_result = await db.execute(select(Goal).where(Goal.id == follow.target_id))
-            target_goal = goal_result.scalar_one_or_none()
+            target_goal = goals_map.get(follow.target_id)
             if target_goal:
                 response_data["target_goal_title"] = target_goal.title
-        
+
         responses.append(FollowWithTargetResponse(**response_data))
-    
+
     return responses
 
 

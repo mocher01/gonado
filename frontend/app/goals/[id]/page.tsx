@@ -4,16 +4,29 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { BPMNQuestMap } from "@/components/quest-map";
 import { NodeFormModal } from "@/components/quest-map/NodeFormModal";
 import { EditGoalModal } from "@/components/goals/EditGoalModal";
 import { NodeCarousel, SwipeIndicator } from "@/components/mobile";
+
+// Lazy load BPMNQuestMap for better performance
+const BPMNQuestMap = dynamic(
+  () => import("@/components/quest-map/BPMNQuestMap").then((mod) => ({ default: mod.BPMNQuestMap })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full bg-slate-800/50 animate-pulse rounded-xl flex items-center justify-center">
+        <div className="text-slate-400">Loading quest map...</div>
+      </div>
+    ),
+  }
+);
 import {
   ElementalReactions,
   ElementalReactionsInline,
