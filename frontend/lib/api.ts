@@ -635,7 +635,84 @@ class ApiClient {
     return this.fetch(`/resource-drops/goals/${goalId}/summary`);
   }
 
-  // Time Capsules
+  // Time Capsules (Issue #72)
+  /**
+   * Create a time capsule on a node.
+   * @param nodeId - The node to attach the capsule to
+   * @param content - The message content
+   * @param unlockType - "node_complete" or "date"
+   * @param unlockDate - ISO date string for date-based unlock (optional)
+   */
+  async createCapsule(
+    nodeId: string,
+    content: string,
+    unlockType: "node_complete" | "date",
+    unlockDate?: string
+  ): Promise<any> {
+    return this.fetch(`/time-capsules/nodes/${nodeId}`, {
+      method: "POST",
+      body: JSON.stringify({
+        node_id: nodeId,
+        content,
+        unlock_type: unlockType,
+        unlock_date: unlockDate || null,
+      }),
+    });
+  }
+
+  /**
+   * Get all time capsules for a node.
+   * @param nodeId - The node ID
+   */
+  async getCapsules(nodeId: string): Promise<{
+    capsules: Array<{
+      id: string;
+      node_id: string;
+      sender_id: string;
+      sender_username: string;
+      sender_display_name: string | null;
+      sender_avatar_url: string | null;
+      content: string;
+      unlock_type: "node_complete" | "date";
+      unlock_date: string | null;
+      is_locked: boolean;
+      created_at: string;
+      unlocked_at: string | null;
+    }>;
+    total: number;
+  }> {
+    return this.fetch(`/time-capsules/nodes/${nodeId}`);
+  }
+
+  /**
+   * Update a time capsule's content (only sender, only before unlock).
+   * @param capsuleId - The capsule ID
+   * @param content - New message content
+   */
+  async updateCapsule(capsuleId: string, content: string): Promise<any> {
+    return this.fetch(`/time-capsules/${capsuleId}`, {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  /**
+   * Delete a time capsule (only sender, only before unlock).
+   * @param capsuleId - The capsule ID
+   */
+  async deleteCapsule(capsuleId: string): Promise<void> {
+    await this.fetch(`/time-capsules/${capsuleId}`, { method: "DELETE" });
+  }
+
+  /**
+   * Manually unlock a capsule (for testing/admin purposes).
+   * @param capsuleId - The capsule ID
+   */
+  async unlockCapsule(capsuleId: string): Promise<any> {
+    return this.fetch(`/time-capsules/${capsuleId}/unlock`, { method: "POST" });
+  }
+
+  // Legacy methods (kept for backwards compatibility)
   async buryTimeCapsule(goalId: string, message: string, triggerType: string, triggerValue?: string): Promise<any> {
     return this.fetch(`/time-capsules/goals/${goalId}`, {
       method: "POST",

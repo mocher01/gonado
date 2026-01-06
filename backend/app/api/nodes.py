@@ -19,6 +19,7 @@ from app.models.user import User
 from app.models.interaction import Interaction, TargetType, InteractionType
 from app.models.comment import Comment, CommentTargetType
 from app.models.resource_drop import ResourceDrop
+from app.models.time_capsule import TimeCapsule, UnlockType
 from app.services.gamification import gamification_service, XP_REWARDS
 from app.services.notifications import notification_service
 
@@ -307,6 +308,19 @@ async def complete_node(
 
     # Update streak
     await gamification_service.update_streak(db, current_user.id)
+
+    # Unlock time capsules tied to this node (Issue #72)
+    capsules_result = await db.execute(
+        select(TimeCapsule).where(
+            TimeCapsule.node_id == node_id,
+            TimeCapsule.unlock_type == UnlockType.NODE_COMPLETE,
+            TimeCapsule.is_unlocked == False
+        )
+    )
+    capsules_to_unlock = capsules_result.scalars().all()
+    for capsule in capsules_to_unlock:
+        capsule.is_unlocked = True
+        capsule.unlocked_at = datetime.utcnow()
 
     # Unlock dependent nodes (Issue #63 - improved logic)
     # Find all nodes that depend on this completed node

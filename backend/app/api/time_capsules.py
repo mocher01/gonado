@@ -1,78 +1,111 @@
 from uuid import UUID
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.api.deps import get_current_user
 from app.schemas.time_capsule import (
-    TimeCapsuleCreate, TimeCapsuleResponse, TimeCapsuleListResponse, TimeCapsuleOpenResponse
+    TimeCapsuleCreate, TimeCapsuleUpdate, TimeCapsuleResponse, TimeCapsuleListResponse
 )
-from app.models.time_capsule import TimeCapsule, CapsuleTriggerType
+from app.models.time_capsule import TimeCapsule, UnlockType
+from app.models.node import Node
 from app.models.goal import Goal
 from app.models.user import User
 
 router = APIRouter()
 
 
-def _build_capsule_response(capsule: TimeCapsule) -> TimeCapsuleResponse:
-    """Build TimeCapsuleResponse from model."""
+def _build_capsule_response(
+    capsule: TimeCapsule,
+    viewer: User,
+    goal_owner_id: UUID,
+    hide_content: bool = False
+) -> TimeCapsuleResponse:
+    """
+    Build TimeCapsuleResponse from model.
+    Hides content if locked and viewer is the goal owner (not the sender).
+    """
+    is_owner = viewer.id == goal_owner_id
+    is_sender = viewer.id == capsule.sender_id
+
+    # Owner sees count but not content until unlocked
+    # Sender always sees their own content
+    content = capsule.content
+    if not capsule.is_unlocked and is_owner and not is_sender:
+        content = "[Locked until unlocked]"
+
     return TimeCapsuleResponse(
         id=capsule.id,
         sender_id=capsule.sender_id,
-        recipient_id=capsule.recipient_id,
-        goal_id=capsule.goal_id,
-        message=capsule.message if capsule.is_opened else "[Sealed until triggered]",
-        trigger_type=capsule.trigger_type,
-        trigger_value=capsule.trigger_value,
-        is_delivered=capsule.is_delivered,
-        is_opened=capsule.is_opened,
+        node_id=capsule.node_id,
+        content=content,
+        unlock_type=capsule.unlock_type,
+        unlock_date=capsule.unlock_date,
+        is_unlocked=capsule.is_unlocked,
+        unlocked_at=capsule.unlocked_at,
         created_at=capsule.created_at,
-        delivered_at=capsule.delivered_at,
-        opened_at=capsule.opened_at,
         sender_username=capsule.sender.username if capsule.sender else None,
         sender_display_name=capsule.sender.display_name if capsule.sender else None,
         sender_avatar_url=capsule.sender.avatar_url if capsule.sender else None,
     )
 
 
-@router.post("/goals/{goal_id}", response_model=TimeCapsuleResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/nodes/{node_id}", response_model=TimeCapsuleResponse, status_code=status.HTTP_201_CREATED)
 async def create_time_capsule(
-    goal_id: UUID,
+    node_id: UUID,
     data: TimeCapsuleCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Bury a time capsule for a goal owner."""
-    # Verify goal exists
+    """Create a time capsule for a node. Must not be the goal owner."""
+    # Get node and goal info
     result = await db.execute(
-        select(Goal).where(Goal.id == goal_id)
+        select(Node, Goal)
+        .join(Goal, Node.goal_id == Goal.id)
+        .where(Node.id == node_id)
     )
-    goal = result.scalar_one_or_none()
-    if not goal:
-        raise HTTPException(status_code=404, detail="Goal not found")
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Node not found")
 
-    if goal.visibility != "public" and goal.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Cannot create capsules for private goals")
+    node, goal = row
 
-    # Validate trigger_value based on trigger_type
-    if data.trigger_type == CapsuleTriggerType.INACTIVE_DAYS:
-        try:
-            days = int(data.trigger_value)
-            if days < 1 or days > 365:
-                raise ValueError()
-        except (ValueError, TypeError):
-            raise HTTPException(status_code=400, detail="inactive_days requires a number between 1-365")
+    # Cannot create capsule for your own goal
+    if goal.user_id == current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot create time capsules for your own goals"
+        )
+
+    # Check goal visibility
+    if goal.visibility == "private":
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot create capsules for private goals"
+        )
+
+    # Validate unlock_date if DATE type
+    if data.unlock_type == UnlockType.DATE:
+        if not data.unlock_date:
+            raise HTTPException(
+                status_code=400,
+                detail="unlock_date is required when unlock_type is DATE"
+            )
+        if data.unlock_date <= datetime.utcnow():
+            raise HTTPException(
+                status_code=400,
+                detail="unlock_date must be in the future"
+            )
 
     capsule = TimeCapsule(
         sender_id=current_user.id,
-        recipient_id=goal.user_id,
-        goal_id=goal_id,
-        message=data.message,
-        trigger_type=data.trigger_type,
-        trigger_value=data.trigger_value
+        node_id=node_id,
+        content=data.content,
+        unlock_type=data.unlock_type,
+        unlock_date=data.unlock_date if data.unlock_type == UnlockType.DATE else None
     )
     db.add(capsule)
     await db.flush()
@@ -85,121 +118,180 @@ async def create_time_capsule(
     )
     capsule = result.scalar_one()
 
-    return _build_capsule_response(capsule)
+    return _build_capsule_response(capsule, current_user, goal.user_id)
 
 
-@router.get("/goals/{goal_id}", response_model=TimeCapsuleListResponse)
-async def get_goal_capsules(
-    goal_id: UUID,
+@router.get("/nodes/{node_id}", response_model=TimeCapsuleListResponse)
+async def get_node_capsules(
+    node_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get time capsules for a goal (only goal owner sees delivered ones)."""
+    """
+    Get time capsules for a node.
+    - Goal owner sees capsule count but NOT content until unlocked
+    - Supporters see their own capsules with full content
+    """
+    # Get node and goal info
     result = await db.execute(
-        select(Goal).where(Goal.id == goal_id)
+        select(Node, Goal)
+        .join(Goal, Node.goal_id == Goal.id)
+        .where(Node.id == node_id)
     )
-    goal = result.scalar_one_or_none()
-    if not goal:
-        raise HTTPException(status_code=404, detail="Goal not found")
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Node not found")
 
-    # Only goal owner can see capsules
-    if goal.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the goal owner can view capsules")
+    node, goal = row
 
+    is_owner = goal.user_id == current_user.id
+
+    # Get capsules
     result = await db.execute(
         select(TimeCapsule)
         .options(selectinload(TimeCapsule.sender))
-        .where(
-            TimeCapsule.goal_id == goal_id,
-            TimeCapsule.recipient_id == current_user.id,
-            TimeCapsule.is_delivered == True
-        )
-        .order_by(TimeCapsule.delivered_at.desc())
+        .where(TimeCapsule.node_id == node_id)
+        .order_by(TimeCapsule.created_at.desc())
     )
     capsules = result.scalars().all()
 
-    unopened = sum(1 for c in capsules if not c.is_opened)
+    locked_count = sum(1 for c in capsules if not c.is_unlocked)
 
     return TimeCapsuleListResponse(
-        capsules=[_build_capsule_response(c) for c in capsules],
+        capsules=[_build_capsule_response(c, current_user, goal.user_id) for c in capsules],
         total=len(capsules),
-        unopened_count=unopened
+        locked_count=locked_count
     )
 
 
-@router.post("/{capsule_id}/open", response_model=TimeCapsuleOpenResponse)
-async def open_time_capsule(
+@router.get("/{capsule_id}", response_model=TimeCapsuleResponse)
+async def get_time_capsule(
     capsule_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Open a delivered time capsule."""
+    """Get a single time capsule."""
+    result = await db.execute(
+        select(TimeCapsule, Goal)
+        .join(Node, TimeCapsule.node_id == Node.id)
+        .join(Goal, Node.goal_id == Goal.id)
+        .options(selectinload(TimeCapsule.sender))
+        .where(TimeCapsule.id == capsule_id)
+    )
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Time capsule not found")
+
+    capsule, goal = row
+
+    return _build_capsule_response(capsule, current_user, goal.user_id)
+
+
+@router.put("/{capsule_id}", response_model=TimeCapsuleResponse)
+async def update_time_capsule(
+    capsule_id: UUID,
+    data: TimeCapsuleUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update a time capsule. Only sender can edit, and only before unlock."""
+    result = await db.execute(
+        select(TimeCapsule, Goal)
+        .join(Node, TimeCapsule.node_id == Node.id)
+        .join(Goal, Node.goal_id == Goal.id)
+        .options(selectinload(TimeCapsule.sender))
+        .where(TimeCapsule.id == capsule_id)
+    )
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Time capsule not found")
+
+    capsule, goal = row
+
+    # Only sender can edit
+    if capsule.sender_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the sender can edit this capsule"
+        )
+
+    # Cannot edit after unlock
+    if capsule.is_unlocked:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot edit capsule after it has been unlocked"
+        )
+
+    # Update fields
+    if data.content is not None:
+        capsule.content = data.content
+    if data.unlock_type is not None:
+        capsule.unlock_type = data.unlock_type
+    if data.unlock_date is not None:
+        capsule.unlock_date = data.unlock_date
+
+    await db.flush()
+
+    return _build_capsule_response(capsule, current_user, goal.user_id)
+
+
+@router.delete("/{capsule_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_time_capsule(
+    capsule_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a time capsule. Only sender can delete, and only before unlock."""
     result = await db.execute(
         select(TimeCapsule)
-        .options(selectinload(TimeCapsule.sender))
         .where(TimeCapsule.id == capsule_id)
     )
     capsule = result.scalar_one_or_none()
     if not capsule:
         raise HTTPException(status_code=404, detail="Time capsule not found")
 
-    if capsule.recipient_id != current_user.id:
-        raise HTTPException(status_code=403, detail="This capsule is not for you")
+    # Only sender can delete
+    if capsule.sender_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the sender can delete this capsule"
+        )
 
-    if not capsule.is_delivered:
-        raise HTTPException(status_code=400, detail="This capsule has not been delivered yet")
+    # Cannot delete after unlock
+    if capsule.is_unlocked:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete capsule after it has been unlocked"
+        )
 
-    if capsule.is_opened:
-        raise HTTPException(status_code=400, detail="Capsule already opened")
-
-    capsule.is_opened = True
-    capsule.opened_at = datetime.utcnow()
-    await db.flush()
-
-    return TimeCapsuleOpenResponse(
-        capsule=_build_capsule_response(capsule),
-        message="Time capsule opened!"
-    )
+    await db.delete(capsule)
 
 
-@router.get("/my-sent", response_model=TimeCapsuleListResponse)
-async def get_my_sent_capsules(
+@router.post("/{capsule_id}/unlock", response_model=TimeCapsuleResponse)
+async def unlock_time_capsule(
+    capsule_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get capsules you have sent to others."""
+    """Manual unlock trigger for testing. In production, this is triggered automatically."""
     result = await db.execute(
-        select(TimeCapsule)
-        .options(selectinload(TimeCapsule.sender), selectinload(TimeCapsule.goal))
-        .where(TimeCapsule.sender_id == current_user.id)
-        .order_by(TimeCapsule.created_at.desc())
+        select(TimeCapsule, Goal)
+        .join(Node, TimeCapsule.node_id == Node.id)
+        .join(Goal, Node.goal_id == Goal.id)
+        .options(selectinload(TimeCapsule.sender))
+        .where(TimeCapsule.id == capsule_id)
     )
-    capsules = result.scalars().all()
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Time capsule not found")
 
-    # For sent capsules, show the message
-    responses = []
-    for c in capsules:
-        resp = TimeCapsuleResponse(
-            id=c.id,
-            sender_id=c.sender_id,
-            recipient_id=c.recipient_id,
-            goal_id=c.goal_id,
-            message=c.message,  # Show full message for sender
-            trigger_type=c.trigger_type,
-            trigger_value=c.trigger_value,
-            is_delivered=c.is_delivered,
-            is_opened=c.is_opened,
-            created_at=c.created_at,
-            delivered_at=c.delivered_at,
-            opened_at=c.opened_at,
-            sender_username=c.sender.username if c.sender else None,
-            sender_display_name=c.sender.display_name if c.sender else None,
-            sender_avatar_url=c.sender.avatar_url if c.sender else None,
-        )
-        responses.append(resp)
+    capsule, goal = row
 
-    return TimeCapsuleListResponse(
-        capsules=responses,
-        total=len(capsules),
-        unopened_count=0
-    )
+    if capsule.is_unlocked:
+        raise HTTPException(status_code=400, detail="Capsule already unlocked")
+
+    capsule.is_unlocked = True
+    capsule.unlocked_at = datetime.utcnow()
+    await db.flush()
+
+    return _build_capsule_response(capsule, current_user, goal.user_id)
