@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # Anthropic
     ANTHROPIC_API_KEY: str = ""
 
+    # Sentry
+    SENTRY_DSN: str | None = None
+
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 

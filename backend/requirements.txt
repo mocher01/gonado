@@ -30,6 +30,9 @@ minio==7.2.3
 slowapi==0.1.9
 pip-audit==2.7.0
 
+# Monitoring
+sentry-sdk[fastapi]==1.40.0
+
 # Utilities
 python-dateutil==2.8.2
 httpx==0.26.0

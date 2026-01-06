@@ -10,6 +10,16 @@ from app.middleware.security import (
     SecurityHeadersMiddleware,
     InputValidationMiddleware,
 )
+import sentry_sdk
+
+
+# Initialize Sentry if DSN is provided
+if settings.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        traces_sample_rate=0.1,
+        environment=settings.ENVIRONMENT,
+    )
 
 
 @asynccontextmanager
