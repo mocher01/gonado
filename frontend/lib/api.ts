@@ -473,6 +473,44 @@ class ApiClient {
     return this.fetch(`/comments/${targetType}/${targetId}`);
   }
 
+  // Batch endpoint for trail markers - get comments for all nodes in a goal
+  async getGoalNodesComments(goalId: string, limit: number = 3): Promise<{
+    goal_id: string;
+    nodes: Record<string, {
+      node_id: string;
+      comments_count: number;
+      recent_comments: Array<{
+        id: string;
+        user_id: string;
+        content: string;
+        created_at: string;
+        is_edited: boolean;
+        user: {
+          id: string;
+          username: string;
+          display_name: string | null;
+          avatar_url: string | null;
+        };
+        replies: Array<{
+          id: string;
+          user_id: string;
+          content: string;
+          created_at: string;
+          is_edited: boolean;
+          user: {
+            id: string;
+            username: string;
+            display_name: string | null;
+            avatar_url: string | null;
+          };
+        }>;
+      }>;
+      has_more: boolean;
+    }>;
+  }> {
+    return this.fetch(`/comments/goal/${goalId}/nodes?limit=${limit}`);
+  }
+
   // Activity Feed
   async getActivityFeed(limit?: number, offset?: number): Promise<any> {
     const params = new URLSearchParams();

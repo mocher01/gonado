@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 /**
  * NodeInteractionPopup - Compact Mystic Cartographer Design
  * Optimized for minimal scrolling and maximum viewport compatibility
+ * Updated for Issue #64 - Coaching & Celebration Reactions
  */
 
 interface NodeInteractionPopupProps {
@@ -18,7 +19,13 @@ interface NodeInteractionPopupProps {
   isOwner: boolean;
   isAuthenticated: boolean;
   socialSummary: {
-    reactions: { fire: number; water: number; nature: number; lightning: number; magic: number };
+    reactions: {
+      encourage: number;
+      celebrate: number;
+      light_path: number;
+      send_strength: number;
+      mark_struggle: number;
+    };
     reactions_total: number;
     comments_count: number;
     resources_count: number;
@@ -32,12 +39,48 @@ interface NodeInteractionPopupProps {
   onBoost: () => void;
 }
 
-const ELEMENTS = [
-  { type: "fire", emoji: "\u{1F525}", color: "#f97316", glow: "rgba(249, 115, 22, 0.5)" },
-  { type: "water", emoji: "\u{1F4A7}", color: "#06b6d4", glow: "rgba(6, 182, 212, 0.5)" },
-  { type: "nature", emoji: "\u{1F33F}", color: "#22c55e", glow: "rgba(34, 197, 94, 0.5)" },
-  { type: "lightning", emoji: "\u26A1", color: "#eab308", glow: "rgba(234, 179, 8, 0.5)" },
-  { type: "magic", emoji: "\u2728", color: "#14b8a6", glow: "rgba(20, 184, 166, 0.5)" },
+// Issue #64: New Coaching & Celebration Reactions
+const COACHING_REACTIONS = [
+  {
+    type: "encourage",
+    fieldName: "encourage",
+    emoji: "\uD83D\uDC4A", // Fist bump
+    label: "Encourage",
+    color: "#22c55e",
+    glow: "rgba(34, 197, 94, 0.5)",
+  },
+  {
+    type: "celebrate",
+    fieldName: "celebrate",
+    emoji: "\uD83C\uDF89", // Party popper
+    label: "Celebrate",
+    color: "#f59e0b",
+    glow: "rgba(245, 158, 11, 0.5)",
+  },
+  {
+    type: "light-path",
+    fieldName: "light_path",
+    emoji: "\uD83D\uDD26", // Flashlight
+    label: "Light Path",
+    color: "#3b82f6",
+    glow: "rgba(59, 130, 246, 0.5)",
+  },
+  {
+    type: "send-strength",
+    fieldName: "send_strength",
+    emoji: "\uD83D\uDCAA", // Flexed bicep
+    label: "Send Strength",
+    color: "#ef4444",
+    glow: "rgba(239, 68, 68, 0.5)",
+  },
+  {
+    type: "mark-struggle",
+    fieldName: "mark_struggle",
+    emoji: "\uD83C\uDFF4", // Black flag
+    label: "Mark Struggle",
+    color: "#8b5cf6",
+    glow: "rgba(139, 92, 246, 0.5)",
+  },
 ];
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; border: string }> = {
@@ -88,7 +131,13 @@ export function NodeInteractionPopup({
   }, [isOpen, onClose]);
 
   const statusStyle = STATUS_CONFIG[node.status] || STATUS_CONFIG.pending;
-  const reactions = socialSummary?.reactions || { fire: 0, water: 0, nature: 0, lightning: 0, magic: 0 };
+  const reactions = socialSummary?.reactions || {
+    encourage: 0,
+    celebrate: 0,
+    light_path: 0,
+    send_strength: 0,
+    mark_struggle: 0,
+  };
   const topComments = socialSummary?.top_comments || [];
 
   return (
@@ -172,10 +221,10 @@ export function NodeInteractionPopup({
                 </Link>
               )}
 
-              {/* Reactions - Inline compact */}
+              {/* Reactions - Inline compact (Issue #64: Coaching Reactions) */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Reactions</span>
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Support</span>
                   {socialSummary && socialSummary.reactions_total > 0 && (
                     <span className="text-[10px] text-slate-500">{socialSummary.reactions_total}</span>
                   )}
@@ -184,28 +233,34 @@ export function NodeInteractionPopup({
                   className="flex items-center gap-0.5 p-1 rounded-xl"
                   style={{ background: "rgba(15, 23, 42, 0.5)", border: "1px solid rgba(51, 65, 85, 0.4)" }}
                 >
-                  {ELEMENTS.map((el) => {
-                    const count = reactions[el.type as keyof typeof reactions];
-                    const isSelected = userReaction === el.type;
+                  {COACHING_REACTIONS.map((r) => {
+                    const count = reactions[r.fieldName as keyof typeof reactions];
+                    const isSelected = userReaction === r.type;
                     return (
                       <motion.button
-                        key={el.type}
+                        key={r.type}
+                        data-testid={`reaction-${r.type}`}
                         disabled={!isAuthenticated}
-                        onClick={() => onReact(el.type)}
+                        onClick={() => onReact(r.type)}
                         className="flex-1 flex flex-col items-center py-1.5 rounded-lg transition-all"
                         style={{
-                          background: isSelected ? `linear-gradient(135deg, ${el.color}15, ${el.color}08)` : "transparent",
-                          boxShadow: isSelected ? `0 0 12px ${el.glow}` : "none",
-                          border: isSelected ? `1px solid ${el.color}50` : "1px solid transparent",
+                          background: isSelected ? `linear-gradient(135deg, ${r.color}15, ${r.color}08)` : "transparent",
+                          boxShadow: isSelected ? `0 0 12px ${r.glow}` : "none",
+                          border: isSelected ? `1px solid ${r.color}50` : "1px solid transparent",
                           cursor: isAuthenticated ? "pointer" : "not-allowed",
                           opacity: isAuthenticated ? 1 : 0.5,
                         }}
                         whileHover={isAuthenticated ? { scale: 1.1 } : {}}
                         whileTap={isAuthenticated ? { scale: 0.95 } : {}}
+                        title={r.label}
                       >
-                        <span className="text-base leading-none">{el.emoji}</span>
-                        <span className="text-[9px] font-bold mt-0.5" style={{ color: isSelected ? el.color : "#64748b" }}>
-                          {count || "·"}
+                        <span className="text-base leading-none">{r.emoji}</span>
+                        <span
+                          data-testid={`${r.type}-count`}
+                          className="text-[9px] font-bold mt-0.5"
+                          style={{ color: isSelected ? r.color : "#64748b" }}
+                        >
+                          {count || "\u00B7"}
                         </span>
                       </motion.button>
                     );

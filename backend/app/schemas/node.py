@@ -128,12 +128,12 @@ class CanInteractResponse(BaseModel):
 
 # Social summary schemas
 class ReactionCounts(BaseModel):
-    """Counts for each reaction type."""
-    fire: int = 0
-    water: int = 0
-    nature: int = 0
-    lightning: int = 0
-    magic: int = 0
+    """Counts for each reaction type (Issue #64 - Coaching & Celebration)."""
+    encourage: int = 0        # "Keep going!" - General support
+    celebrate: int = 0        # "Amazing progress!" - Milestone recognition
+    light_path: int = 0       # "Showing you the way" - Guidance/tips (field uses underscore)
+    send_strength: int = 0    # "Power boost!" - Energy for hard tasks (field uses underscore)
+    mark_struggle: int = 0    # "I see you struggling" - Triggers support (field uses underscore)
 
 
 class TopComment(BaseModel):

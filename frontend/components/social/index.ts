@@ -1,8 +1,13 @@
-// Core Social Components
+// Core Social Components - Reactions
+// Issue #64: New Coaching & Celebration Reaction System
+export { CoachingReactions, CoachingReactionsInline, convertElementalToCoaching } from "./CoachingReactions";
+export type { CoachingReactionType, CoachingReactionCounts } from "./CoachingReactions";
+
+// Legacy Elemental Reactions (deprecated, kept for backwards compatibility)
 export { ElementalReactions, ElementalReactionsInline } from "./ElementalReactions";
 export type { ElementType } from "./ElementalReactions";
 
-export { TrailMarkers, TrailMarkerBadge } from "./TrailMarkers";
+export { TrailMarkers, TrailMarkerBadge, QuickCommentInput } from "./TrailMarkers";
 
 export { FellowTravelers, FellowTravelersCompact, TravelersOnPath } from "./FellowTravelers";
 

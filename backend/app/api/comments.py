@@ -285,3 +285,88 @@ async def get_comment_replies(
     )
 
     return result.scalars().all()
+
+
+from app.models.node import Node
+from app.models.goal import Goal
+from pydantic import BaseModel
+
+
+class NodeCommentSummary(BaseModel):
+    """Summary of comments for a single node."""
+    node_id: UUID
+    comments_count: int
+    recent_comments: List[CommentWithReplies]
+    has_more: bool
+
+    class Config:
+        from_attributes = True
+
+
+class GoalNodesCommentsResponse(BaseModel):
+    """Batch response for all node comments in a goal."""
+    goal_id: UUID
+    nodes: dict[str, NodeCommentSummary]
+
+
+@router.get("/goal/{goal_id}/nodes", response_model=GoalNodesCommentsResponse)
+async def get_goal_nodes_comments(
+    goal_id: UUID,
+    limit: int = Query(default=3, ge=1, le=10, description="Number of recent comments per node"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get comments for all nodes in a goal (batch endpoint for trail markers).
+    Returns recent comments for each node to display in trail marker previews.
+    """
+    # Get all nodes for the goal
+    nodes_result = await db.execute(
+        select(Node.id).where(Node.goal_id == goal_id)
+    )
+    node_ids = [row[0] for row in nodes_result.all()]
+
+    if not node_ids:
+        return GoalNodesCommentsResponse(goal_id=goal_id, nodes={})
+
+    nodes_summary: dict[str, NodeCommentSummary] = {}
+
+    for node_id in node_ids:
+        # Get total count
+        count_result = await db.execute(
+            select(func.count(Comment.id))
+            .where(
+                Comment.target_type == CommentTargetType.NODE,
+                Comment.target_id == node_id,
+                Comment.parent_id.is_(None)  # Count root comments only
+            )
+        )
+        total = count_result.scalar() or 0
+
+        # Get recent comments with user info
+        comments_result = await db.execute(
+            select(Comment)
+            .options(
+                selectinload(Comment.user),
+                selectinload(Comment.replies).selectinload(Comment.user)
+            )
+            .where(
+                Comment.target_type == CommentTargetType.NODE,
+                Comment.target_id == node_id,
+                Comment.parent_id.is_(None)
+            )
+            .order_by(Comment.created_at.desc())
+            .limit(limit)
+        )
+        comments = comments_result.scalars().all()
+
+        # Build tree for fetched comments
+        comment_list = build_comment_tree(list(comments))
+
+        nodes_summary[str(node_id)] = NodeCommentSummary(
+            node_id=node_id,
+            comments_count=total,
+            recent_comments=comment_list,
+            has_more=total > limit
+        )
+
+    return GoalNodesCommentsResponse(goal_id=goal_id, nodes=nodes_summary)

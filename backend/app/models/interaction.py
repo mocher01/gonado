@@ -19,12 +19,13 @@ class TargetType(str, Enum):
 
 
 class ReactionType(str, Enum):
-    # Elemental reactions for unique UX
-    FIRE = "fire"           # "You're on fire, keep going!"
-    WATER = "water"         # "Stay cool, pace yourself"
-    NATURE = "nature"       # "Growing beautifully"
-    LIGHTNING = "lightning" # "Fast progress!"
-    MAGIC = "magic"         # "This inspired me"
+    # New Coaching & Celebration Reactions (Issue #64)
+    # Coaching Philosophy Aligned Reactions
+    ENCOURAGE = "encourage"       # "Keep going!" - General support
+    CELEBRATE = "celebrate"       # "Amazing progress!" - Milestone recognition
+    LIGHT_PATH = "light-path"     # "Showing you the way" - Guidance/tips
+    SEND_STRENGTH = "send-strength"  # "Power boost!" - Energy for hard tasks
+    MARK_STRUGGLE = "mark-struggle"  # "I see you struggling" - Triggers support
 
 
 class Interaction(Base):

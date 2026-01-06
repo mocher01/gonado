@@ -689,9 +689,13 @@ async def _get_node_social_summary(
     reactions_total = 0
     for row in reaction_rows:
         reaction_type, count = row
-        if reaction_type and hasattr(reaction_counts, reaction_type):
-            setattr(reaction_counts, reaction_type, count)
-            reactions_total += count
+        if reaction_type:
+            # Convert hyphenated reaction types to underscored field names
+            # e.g., "light-path" -> "light_path"
+            field_name = reaction_type.replace("-", "_")
+            if hasattr(reaction_counts, field_name):
+                setattr(reaction_counts, field_name, count)
+                reactions_total += count
 
     # Get comments count
     comments_result = await db.execute(

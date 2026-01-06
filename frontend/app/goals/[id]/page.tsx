@@ -2265,8 +2265,8 @@ export default function GoalDetailPage() {
             />
           )}
 
-          {/* OWNER VIEW: Stats bar at top */}
-          {isOwner && isPublic && (
+          {/* OWNER VIEW: Stats bar at top (show for all owner goals, not just public) */}
+          {isOwner && (
             <OwnerStatsBar
               reactions={reactions}
               followersCount={followers.length}
