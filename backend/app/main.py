@@ -5,6 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api import api_router
 from app.websocket.manager import connection_manager
+from app.middleware.security import (
+    setup_rate_limiting,
+    SecurityHeadersMiddleware,
+    InputValidationMiddleware,
+)
 
 
 @asynccontextmanager
@@ -20,6 +25,15 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Security middleware - rate limiting
+setup_rate_limiting(app)
+
+# Security headers
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Input validation and sanitization
+app.add_middleware(InputValidationMiddleware)
 
 # CORS
 app.add_middleware(

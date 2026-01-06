@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, delete
 from app.database import get_db
@@ -24,6 +24,7 @@ from app.models.conversation import Conversation
 from app.models.generation_queue import GenerationQueue
 from app.services.ai_planner import ai_planner_service
 from app.services.gamification import gamification_service, XP_REWARDS
+from app.middleware.security import limiter
 
 
 async def check_goal_access(
@@ -100,7 +101,9 @@ async def create_goal(
 
 
 @router.post("/{goal_id}/generate-plan")
+@limiter.limit("5/minute")
 async def generate_plan(
+    request: Request,
     goal_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)

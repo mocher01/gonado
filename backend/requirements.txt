@@ -1,7 +1,7 @@
 # FastAPI and server
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-multipart==0.0.6
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.18
 
 # Database
 sqlalchemy[asyncio]==2.0.25
@@ -12,7 +12,7 @@ alembic==1.13.1
 redis==5.0.1
 
 # Authentication
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.4.0
 passlib[bcrypt]==1.7.4
 
 # Validation and settings
@@ -25,6 +25,10 @@ anthropic==0.18.1
 
 # Storage
 minio==7.2.3
+
+# Security
+slowapi==0.1.9
+pip-audit==2.7.0
 
 # Utilities
 python-dateutil==2.8.2
