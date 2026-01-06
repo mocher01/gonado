@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { BPMNQuestMap } from "@/components/quest-map";
-import { NodeEditModal } from "@/components/quest-map/NodeEditModal";
+import { NodeFormModal } from "@/components/quest-map/NodeFormModal";
 import { EditGoalModal } from "@/components/goals/EditGoalModal";
 import {
   ElementalReactions,
@@ -26,7 +26,7 @@ import {
   ResourceDropModal,
 } from "@/components/social";
 import type { ElementType } from "@/components/social";
-import type { Goal, Node, ChecklistItem } from "@/types";
+import type { Goal, Node, ChecklistItem, NodeType } from "@/types";
 
 // Social data types
 interface Follower {
@@ -1241,7 +1241,8 @@ export default function GoalDetailPage() {
   const [copied, setCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [editingNode, setEditingNode] = useState<Node | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isNodeModalOpen, setIsNodeModalOpen] = useState(false);
+  const [nodeModalMode, setNodeModalMode] = useState<"create" | "edit">("create");
 
   // Social state
   const [followers, setFollowers] = useState<Follower[]>([]);
@@ -1539,22 +1540,91 @@ export default function GoalDetailPage() {
     const node = nodes.find(n => n.id === nodeId);
     if (node) {
       setEditingNode(node);
-      setIsEditModalOpen(true);
+      setNodeModalMode("edit");
+      setIsNodeModalOpen(true);
     }
   };
 
-  const handleNodeSave = async (nodeId: string, data: { title: string; description: string; checklist: ChecklistItem[] }) => {
+  const handleAddNode = () => {
+    setEditingNode(null);
+    setNodeModalMode("create");
+    setIsNodeModalOpen(true);
+  };
+
+  const handleNodeFormSave = async (data: {
+    title: string;
+    description: string;
+    node_type: NodeType;
+    estimated_duration: number | null;
+    checklist: ChecklistItem[];
+  }) => {
     try {
-      setNodes(prev => prev.map(node =>
-        node.id === nodeId
-          ? { ...node, title: data.title, description: data.description, extra_data: { ...node.extra_data, checklist: data.checklist } }
-          : node
-      ));
-      await api.updateNode(nodeId, { title: data.title, description: data.description, extra_data: { checklist: data.checklist } });
+      if (nodeModalMode === "create" && goal) {
+        // Create new node with auto-position
+        const maxOrder = nodes.length > 0 ? Math.max(...nodes.map(n => n.order)) : 0;
+        const lastNode = nodes.length > 0 ? nodes[nodes.length - 1] : null;
+
+        // Auto-position: place to the right of the last node
+        const newPositionX = lastNode ? lastNode.position_x + 600 : 100;
+        const newPositionY = lastNode ? lastNode.position_y : 250;
+
+        const newNode = await api.createNode(goal.id, {
+          title: data.title,
+          description: data.description || undefined,
+          order: maxOrder + 1,
+          node_type: data.node_type,
+          estimated_duration: data.estimated_duration || undefined,
+          position_x: newPositionX,
+          position_y: newPositionY,
+        });
+
+        // Update node with extra_data (checklist)
+        if (data.checklist.length > 0) {
+          await api.updateNode(newNode.id, { extra_data: { checklist: data.checklist } });
+          newNode.extra_data = { checklist: data.checklist };
+        }
+
+        setNodes(prev => [...prev, newNode]);
+        toast.success("Step added!");
+      } else if (nodeModalMode === "edit" && editingNode) {
+        // Update existing node
+        setNodes(prev => prev.map(node =>
+          node.id === editingNode.id
+            ? {
+                ...node,
+                title: data.title,
+                description: data.description,
+                node_type: data.node_type,
+                estimated_duration: data.estimated_duration,
+                extra_data: { ...node.extra_data, checklist: data.checklist }
+              }
+            : node
+        ));
+        await api.updateNode(editingNode.id, {
+          title: data.title,
+          description: data.description,
+          node_type: data.node_type,
+          estimated_duration: data.estimated_duration,
+          extra_data: { checklist: data.checklist }
+        });
+        toast.success("Step updated!");
+      }
     } catch (err) {
       const nodesData = await api.getGoalNodes(goalId);
       setNodes(nodesData);
-      setError(err instanceof Error ? err.message : "Failed to save changes");
+      toast.error(err instanceof Error ? err.message : "Failed to save changes");
+      throw err;
+    }
+  };
+
+  const handleNodeDelete = async () => {
+    if (!editingNode) return;
+    try {
+      await api.deleteNode(editingNode.id);
+      setNodes(prev => prev.filter(n => n.id !== editingNode.id));
+      toast.success("Step deleted!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete step");
       throw err;
     }
   };
@@ -2118,6 +2188,21 @@ export default function GoalDetailPage() {
               </button>
             )}
 
+            {/* Add Node button (owner only) */}
+            {isOwner && (
+              <button
+                onClick={handleAddNode}
+                data-testid="add-node-btn"
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-500/30 backdrop-blur-sm rounded-full text-emerald-300 hover:bg-emerald-500/40 transition-colors"
+                title="Add new step"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add Step</span>
+              </button>
+            )}
+
             {/* Edit Goal button (owner only) */}
             {isOwner && (
               <button
@@ -2291,15 +2376,18 @@ export default function GoalDetailPage() {
         activities={activities}
       />
 
-      {/* Node Edit Modal */}
-      <NodeEditModal
+      {/* Node Form Modal (Add/Edit/Delete) */}
+      <NodeFormModal
         node={editingNode}
-        isOpen={isEditModalOpen}
+        isOpen={isNodeModalOpen}
         onClose={() => {
-          setIsEditModalOpen(false);
+          setIsNodeModalOpen(false);
           setEditingNode(null);
         }}
-        onSave={handleNodeSave}
+        onSave={handleNodeFormSave}
+        onDelete={nodeModalMode === "edit" ? handleNodeDelete : undefined}
+        mode={nodeModalMode}
+        nodeCount={nodes.length}
       />
 
       {/* Node Interaction Popup */}

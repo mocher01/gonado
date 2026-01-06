@@ -50,8 +50,17 @@ class Node(Base):
     # Whether this node can be done in parallel with siblings
     can_parallel: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Sequential/Parallel structuring (Issue #63)
+    # is_sequential: True means this node must wait for its dependencies to complete
+    is_sequential: Mapped[bool] = mapped_column(Boolean, default=True)
+    # parallel_group: Nodes in the same group (> 0) can be worked on simultaneously
+    parallel_group: Mapped[int] = mapped_column(Integer, nullable=True, default=None)
+
     # Estimated duration in hours (for critical path calculation)
     estimated_duration: Mapped[int] = mapped_column(Integer, nullable=True)
+
+    # Difficulty level (1-5 scale: 1=Easy, 5=Very Hard)
+    difficulty: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
 
     # Position for quest map visualization
     position_x: Mapped[float] = mapped_column(Float, default=0.0)

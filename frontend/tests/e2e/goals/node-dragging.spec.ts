@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test';
  */
 
 // Test goal ID - should exist in test environment
-const TEST_GOAL_ID = 'e3dc9226-15d7-4421-903a-a4ece38dd586';
+const TEST_GOAL_ID = '2e1f2b81-1b52-4679-af5a-f544d23beae6';
 const GOAL_PAGE_URL = `/goals/${TEST_GOAL_ID}`;
 
 test.describe('Node Dragging - Issue #43', () => {
@@ -70,8 +70,8 @@ test.describe('Node Dragging - Issue #43', () => {
     test.beforeEach(async ({ page }) => {
       // Login first
       await page.goto('/login');
-      await page.fill('input[name="email"]', 'test@example.com');
-      await page.fill('input[name="password"]', 'testpassword');
+      await page.fill('input[type="email"]', 'test@example.com');
+      await page.fill('input[type="password"]', 'testpassword');
       await page.click('button[type="submit"]');
 
       // Wait for redirect to dashboard or home

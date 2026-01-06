@@ -10,9 +10,10 @@ from app.api.deps import get_current_user
 from app.schemas.node import (
     NodeCreate, NodeUpdate, NodeResponse, NodeStatusUpdate, NodePositionUpdate,
     DependencyCreate, DependencyResponse, NodeWithDependenciesResponse,
-    NodeSocialSummary, GoalNodesSocialSummary, ReactionCounts, TopComment
+    NodeSocialSummary, GoalNodesSocialSummary, ReactionCounts, TopComment,
+    CanInteractResponse
 )
-from app.models.node import Node, NodeStatus, NodeDependency
+from app.models.node import Node, NodeStatus, NodeDependency, DependencyType
 from app.models.goal import Goal
 from app.models.user import User
 from app.models.interaction import Interaction, TargetType, InteractionType
@@ -22,6 +23,142 @@ from app.services.gamification import gamification_service, XP_REWARDS
 from app.services.notifications import notification_service
 
 router = APIRouter()
+
+
+# === Helper Functions for Sequential/Parallel Logic ===
+
+async def _detect_circular_dependency(
+    db: AsyncSession,
+    node_id: UUID,
+    depends_on_id: UUID,
+    visited: set = None
+) -> bool:
+    """
+    Detect if adding a dependency from node_id -> depends_on_id would create a cycle.
+    Uses DFS to check if depends_on_id can reach node_id through existing dependencies.
+    Returns True if a cycle would be created, False otherwise.
+    """
+    if visited is None:
+        visited = set()
+
+    if depends_on_id == node_id:
+        return True
+
+    if depends_on_id in visited:
+        return False
+
+    visited.add(depends_on_id)
+
+    # Get all nodes that depends_on_id depends on
+    result = await db.execute(
+        select(NodeDependency.depends_on_id).where(
+            NodeDependency.node_id == depends_on_id
+        )
+    )
+    upstream_deps = [row[0] for row in result.all()]
+
+    for upstream_id in upstream_deps:
+        if await _detect_circular_dependency(db, node_id, upstream_id, visited):
+            return True
+
+    return False
+
+
+async def _can_interact_with_node(
+    db: AsyncSession,
+    node_id: UUID
+) -> tuple[bool, str | None, list[UUID]]:
+    """
+    Check if a node can be interacted with based on its dependencies.
+
+    For sequential nodes (is_sequential=True):
+    - All dependencies must be completed (FINISH_TO_START)
+    - Or started (START_TO_START)
+
+    For parallel nodes (is_sequential=False or in a parallel_group):
+    - Node is always accessible
+
+    Returns: (can_interact, reason, blocking_node_ids)
+    """
+    # Get the node
+    result = await db.execute(select(Node).where(Node.id == node_id))
+    node = result.scalar_one_or_none()
+
+    if not node:
+        return False, "Node not found", []
+
+    # If node is already completed or active, it can be interacted with
+    if node.status in [NodeStatus.COMPLETED, NodeStatus.ACTIVE]:
+        return True, None, []
+
+    # If node is not sequential, it's always accessible
+    if not node.is_sequential:
+        return True, None, []
+
+    # If node is in a parallel group, check if any node in the same group is unlocked
+    if node.parallel_group is not None:
+        # Get all nodes in the same parallel group
+        group_result = await db.execute(
+            select(Node).where(
+                Node.goal_id == node.goal_id,
+                Node.parallel_group == node.parallel_group,
+                Node.id != node_id
+            )
+        )
+        group_nodes = group_result.scalars().all()
+
+        # If any node in the group is active or completed, this node is accessible
+        for group_node in group_nodes:
+            if group_node.status in [NodeStatus.ACTIVE, NodeStatus.COMPLETED]:
+                return True, None, []
+
+    # Get dependencies for this node
+    deps_result = await db.execute(
+        select(NodeDependency).where(NodeDependency.node_id == node_id)
+    )
+    dependencies = deps_result.scalars().all()
+
+    # If no dependencies, check if it's the first node (by order)
+    if not dependencies:
+        # Check if there are earlier nodes that aren't complete
+        earlier_result = await db.execute(
+            select(Node).where(
+                Node.goal_id == node.goal_id,
+                Node.order < node.order,
+                Node.status != NodeStatus.COMPLETED
+            )
+        )
+        earlier_incomplete = earlier_result.scalars().all()
+
+        if earlier_incomplete:
+            return False, "Complete previous steps first", [n.id for n in earlier_incomplete]
+        return True, None, []
+
+    # Check each dependency
+    blocking_nodes = []
+    for dep in dependencies:
+        dep_node_result = await db.execute(
+            select(Node).where(Node.id == dep.depends_on_id)
+        )
+        dep_node = dep_node_result.scalar_one_or_none()
+
+        if not dep_node:
+            continue
+
+        if dep.dependency_type == DependencyType.FINISH_TO_START:
+            # Node must be completed
+            if dep_node.status != NodeStatus.COMPLETED:
+                blocking_nodes.append(dep_node.id)
+        elif dep.dependency_type == DependencyType.START_TO_START:
+            # Node must be at least active
+            if dep_node.status == NodeStatus.LOCKED:
+                blocking_nodes.append(dep_node.id)
+        # FINISH_TO_FINISH doesn't block starting
+
+    if blocking_nodes:
+        return False, "Waiting for dependencies to complete", blocking_nodes
+
+    return True, None, []
 
 
 @router.post("", response_model=NodeResponse, status_code=status.HTTP_201_CREATED)
@@ -154,6 +291,11 @@ async def complete_node(
     if node.status != NodeStatus.ACTIVE:
         raise HTTPException(status_code=400, detail="Node is not active")
 
+    # Check if node can be completed (respects sequential dependencies)
+    can_interact, reason, blocking = await _can_interact_with_node(db, node_id)
+    if not can_interact:
+        raise HTTPException(status_code=400, detail=reason or "Cannot complete this node yet")
+
     # Complete the node (checklist status preserved as-is)
     node.status = NodeStatus.COMPLETED
     node.completed_at = datetime.utcnow()
@@ -166,16 +308,49 @@ async def complete_node(
     # Update streak
     await gamification_service.update_streak(db, current_user.id)
 
-    # Unlock next node
-    result = await db.execute(
-        select(Node).where(
-            Node.goal_id == node.goal_id,
-            Node.order == node.order + 1
-        )
+    # Unlock dependent nodes (Issue #63 - improved logic)
+    # Find all nodes that depend on this completed node
+    dependents_result = await db.execute(
+        select(NodeDependency).where(NodeDependency.depends_on_id == node_id)
     )
-    next_node = result.scalar_one_or_none()
-    if next_node:
-        next_node.status = NodeStatus.ACTIVE
+    dependent_deps = dependents_result.scalars().all()
+
+    for dep in dependent_deps:
+        # Get the dependent node
+        dep_node_result = await db.execute(select(Node).where(Node.id == dep.node_id))
+        dep_node = dep_node_result.scalar_one_or_none()
+
+        if dep_node and dep_node.status == NodeStatus.LOCKED:
+            # Check if ALL dependencies of this node are now satisfied
+            can_unlock, _, _ = await _can_interact_with_node(db, dep_node.id)
+            if can_unlock:
+                dep_node.status = NodeStatus.ACTIVE
+
+    # Also unlock nodes in the same parallel group
+    if node.parallel_group is not None:
+        group_result = await db.execute(
+            select(Node).where(
+                Node.goal_id == node.goal_id,
+                Node.parallel_group == node.parallel_group,
+                Node.status == NodeStatus.LOCKED
+            )
+        )
+        group_nodes = group_result.scalars().all()
+        for group_node in group_nodes:
+            group_node.status = NodeStatus.ACTIVE
+
+    # Fallback: unlock next sequential node if no dependencies defined
+    if not dependent_deps:
+        next_result = await db.execute(
+            select(Node).where(
+                Node.goal_id == node.goal_id,
+                Node.order == node.order + 1,
+                Node.status == NodeStatus.LOCKED
+            )
+        )
+        next_node = next_result.scalar_one_or_none()
+        if next_node:
+            next_node.status = NodeStatus.ACTIVE
 
     # Check if all nodes complete
     result = await db.execute(
@@ -349,6 +524,18 @@ async def add_dependency(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Dependency already exists")
 
+    # Check for circular dependency (Issue #63)
+    # Would adding this dependency create a cycle?
+    # Check if depends_on_id -> ... -> node_id already exists
+    would_create_cycle = await _detect_circular_dependency(
+        db, dependency.depends_on_id, node_id
+    )
+    if would_create_cycle:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot add dependency: would create circular dependency"
+        )
+
     # Create dependency
     node_dep = NodeDependency(
         node_id=node_id,
@@ -393,6 +580,28 @@ async def remove_dependency(
         raise HTTPException(status_code=404, detail="Dependency not found")
 
     await db.delete(dependency)
+
+
+@router.get("/{node_id}/can-interact", response_model=CanInteractResponse)
+async def can_interact_with_node(
+    node_id: UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Check if a node can be interacted with based on sequential/parallel structuring.
+
+    Returns whether the node is accessible and if not, which nodes are blocking it.
+    This is useful for:
+    - Showing lock icons on the frontend
+    - Preventing premature node completion
+    - Guiding users through the correct sequence
+    """
+    can_interact, reason, blocking_nodes = await _can_interact_with_node(db, node_id)
+    return CanInteractResponse(
+        can_interact=can_interact,
+        reason=reason,
+        blocking_nodes=blocking_nodes
+    )
 
 
 @router.get("/goal/{goal_id}/flow", response_model=List[NodeWithDependenciesResponse])

@@ -64,6 +64,18 @@ export interface Node {
   node_type: NodeType;
   can_parallel: boolean;
   estimated_duration: number | null;
+  // Difficulty level (1-5, default 3)
+  difficulty: number;
+  // Sequential/Parallel structuring (Issue #63)
+  is_sequential: boolean;
+  parallel_group: number | null;
+  can_interact: boolean;
+}
+
+export interface CanInteractResponse {
+  can_interact: boolean;
+  reason: string | null;
+  blocking_nodes: string[];
 }
 
 export interface NodeWithDependencies extends Node {

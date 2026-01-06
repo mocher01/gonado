@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import { motion } from "framer-motion";
+import { DifficultyIndicator } from "../DifficultySelector";
 
 /**
  * TaskNode - Quest Map Step Component
@@ -35,6 +36,11 @@ interface TaskNodeData {
   status: "locked" | "active" | "completed" | "failed";
   order: number;
   can_parallel: boolean;
+  difficulty?: number;
+  // Sequential/Parallel structuring (Issue #63)
+  is_sequential?: boolean;
+  parallel_group?: number | null;
+  can_interact?: boolean;
   extra_data?: {
     checklist?: ChecklistItem[];
   };
@@ -202,6 +208,11 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Difficulty indicator */}
+            {data.difficulty !== undefined && (
+              <DifficultyIndicator value={data.difficulty} compact />
+            )}
+
             {/* Parallel badge */}
             {data.can_parallel && (
               <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-500/20 text-emerald-300">
@@ -409,11 +420,18 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
             </motion.button>
           )}
 
-          {/* Locked hint */}
+          {/* Locked hint - shows lock icon for sequential nodes (Issue #63) */}
           {isLocked && (
             <div className="mt-3 py-2 px-3 rounded-lg bg-slate-800/50 flex items-center gap-2 text-slate-500 text-sm">
-              <span>🔒</span>
-              <span>Complete previous step first</span>
+              <span className="text-lg">🔒</span>
+              <span>
+                {data.is_sequential !== false
+                  ? "Complete previous step first"
+                  : data.parallel_group
+                    ? `Part of parallel group ${data.parallel_group}`
+                    : "Waiting for dependencies"
+                }
+              </span>
             </div>
           )}
 

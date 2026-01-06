@@ -3,18 +3,20 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Node, ChecklistItem } from "@/types";
+import { DifficultySelector } from "./DifficultySelector";
 
 interface NodeEditModalProps {
   node: Node | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (nodeId: string, data: { title: string; description: string; checklist: ChecklistItem[] }) => Promise<void>;
+  onSave: (nodeId: string, data: { title: string; description: string; checklist: ChecklistItem[]; difficulty: number }) => Promise<void>;
 }
 
 export function NodeEditModal({ node, isOpen, onClose, onSave }: NodeEditModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [difficulty, setDifficulty] = useState(3);
   const [newItemText, setNewItemText] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -24,6 +26,7 @@ export function NodeEditModal({ node, isOpen, onClose, onSave }: NodeEditModalPr
       setTitle(node.title);
       setDescription(node.description || "");
       setChecklist(node.extra_data?.checklist || []);
+      setDifficulty(node.difficulty ?? 3);
     }
   }, [node]);
 
@@ -52,7 +55,7 @@ export function NodeEditModal({ node, isOpen, onClose, onSave }: NodeEditModalPr
     if (!node) return;
     setSaving(true);
     try {
-      await onSave(node.id, { title, description, checklist });
+      await onSave(node.id, { title, description, checklist, difficulty });
       onClose();
     } catch (err) {
       console.error("Failed to save:", err);
@@ -116,6 +119,15 @@ export function NodeEditModal({ node, isOpen, onClose, onSave }: NodeEditModalPr
                   rows={3}
                   className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 outline-none transition-colors resize-none"
                   placeholder="Brief description..."
+                />
+              </div>
+
+              {/* Difficulty */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Difficulty Level</label>
+                <DifficultySelector
+                  value={difficulty}
+                  onChange={setDifficulty}
                 />
               </div>
 

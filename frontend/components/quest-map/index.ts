@@ -3,3 +3,5 @@ export { TaskNode } from "./nodes/TaskNode";
 export { GatewayNode } from "./nodes/GatewayNode";
 export { MilestoneNode } from "./nodes/MilestoneNode";
 export { QuestEdge } from "./edges/QuestEdge";
+export { NodeEditModal } from "./NodeEditModal";
+export { NodeFormModal } from "./NodeFormModal";

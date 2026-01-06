@@ -315,6 +315,11 @@ function BPMNQuestMapInner({
               status: parallelNode.status,
               order: parallelNode.order,
               can_parallel: parallelNode.can_parallel,
+              difficulty: parallelNode.difficulty,
+              // Sequential/Parallel structuring (Issue #63)
+              is_sequential: (parallelNode as any).is_sequential,
+              parallel_group: (parallelNode as any).parallel_group,
+              can_interact: (parallelNode as any).can_interact,
               extra_data: parallelNode.extra_data,
               onComplete: onCompleteNode
                 ? () => onCompleteNode(parallelNode.id)
@@ -411,6 +416,11 @@ function BPMNQuestMapInner({
             status: node.status,
             order: node.order,
             can_parallel: node.can_parallel,
+            difficulty: node.difficulty,
+            // Sequential/Parallel structuring (Issue #63)
+            is_sequential: (node as any).is_sequential,
+            parallel_group: (node as any).parallel_group,
+            can_interact: (node as any).can_interact,
             extra_data: node.extra_data,
             onComplete: onCompleteNode
               ? () => onCompleteNode(node.id)

@@ -1,4 +1,4 @@
-import type { User, Goal, Node, Update, AuthTokens, Notification, LeaderboardEntry } from "@/types";
+import type { User, Goal, Node, Update, AuthTokens, Notification, LeaderboardEntry, CanInteractResponse, NodeWithDependencies, DependencyType } from "@/types";
 
 // Use relative URL - requests proxied through Next.js rewrites to backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
@@ -204,11 +204,30 @@ class ApiClient {
     return this.fetch<Node>(`/nodes/${id}`);
   }
 
+  async createNode(goalId: string, data: {
+    title: string;
+    description?: string;
+    order: number;
+    node_type?: "task" | "milestone" | "parallel_start" | "parallel_end";
+    estimated_duration?: number;
+    position_x?: number;
+    position_y?: number;
+  }): Promise<Node> {
+    return this.fetch<Node>(`/goals/${goalId}/nodes`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
   async updateNode(id: string, data: Partial<Node>): Promise<Node> {
     return this.fetch<Node>(`/nodes/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     });
+  }
+
+  async deleteNode(id: string): Promise<void> {
+    await this.fetch(`/nodes/${id}`, { method: "DELETE" });
   }
 
   async updateNodePosition(id: string, position_x: number, position_y: number): Promise<Node> {
@@ -220,6 +239,30 @@ class ApiClient {
 
   async completeNode(id: string): Promise<Node> {
     return this.fetch<Node>(`/nodes/${id}/complete`, { method: "POST" });
+  }
+
+  // Node Dependencies (Issue #63)
+  async canInteractWithNode(nodeId: string): Promise<CanInteractResponse> {
+    return this.fetch<CanInteractResponse>(`/nodes/${nodeId}/can-interact`);
+  }
+
+  async getNodeWithDependencies(nodeId: string): Promise<NodeWithDependencies> {
+    return this.fetch<NodeWithDependencies>(`/nodes/${nodeId}/with-dependencies`);
+  }
+
+  async getGoalFlow(goalId: string): Promise<NodeWithDependencies[]> {
+    return this.fetch<NodeWithDependencies[]>(`/nodes/goal/${goalId}/flow`);
+  }
+
+  async addNodeDependency(nodeId: string, dependsOnId: string, dependencyType: DependencyType = "finish_to_start"): Promise<any> {
+    return this.fetch(`/nodes/${nodeId}/dependencies`, {
+      method: "POST",
+      body: JSON.stringify({ depends_on_id: dependsOnId, dependency_type: dependencyType }),
+    });
+  }
+
+  async removeNodeDependency(nodeId: string, dependsOnId: string): Promise<void> {
+    await this.fetch(`/nodes/${nodeId}/dependencies/${dependsOnId}`, { method: "DELETE" });
   }
 
   async updateChecklistItem(nodeId: string, itemId: string, completed: boolean): Promise<Node> {

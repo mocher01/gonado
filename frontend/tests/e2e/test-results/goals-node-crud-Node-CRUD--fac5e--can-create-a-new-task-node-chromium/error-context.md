@@ -1,0 +1,115 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic:
+        - generic: ❄️
+        - generic: 🍂
+        - generic: 🌬️
+        - generic: ❄️
+        - generic: 🍂
+        - generic: 🌬️
+        - generic: ❄️
+        - generic: 🍂
+        - generic: 🌬️
+        - generic: ❄️
+        - generic: 🍂
+        - generic: 🌬️
+        - generic: ❄️
+        - generic: 🍂
+        - generic: 🌬️
+      - application [ref=e5]:
+        - generic [ref=e7]:
+          - generic:
+            - generic:
+              - img
+              - img:
+                - group "Edge from 77648fbc-8c3a-486c-b220-a4b20a2b07b6 to end" [ref=e8] [cursor=pointer]
+            - generic:
+              - generic:
+                - generic: Critical
+            - generic:
+              - group [ref=e12] [cursor=pointer]:
+                - generic [ref=e15]:
+                  - generic [ref=e16]:
+                    - generic [ref=e17]:
+                      - generic [ref=e18]: ✓
+                      - generic [ref=e19]: ✓ Done
+                    - 'generic "Difficulty: Medium" [ref=e21]':
+                      - generic [ref=e22]: "*"
+                      - generic [ref=e23]: "*"
+                      - generic [ref=e24]: "*"
+                  - generic "Click to interact with this node" [ref=e25]:
+                    - generic [ref=e26]:
+                      - generic [ref=e27]: ✨
+                      - generic [ref=e28]: Click to react or comment
+                      - generic [ref=e29]: ✨
+                  - generic [ref=e30]:
+                    - heading "Test Node" [level=3] [ref=e31]
+                    - generic [ref=e32]:
+                      - generic [ref=e33]: 🎉
+                      - generic [ref=e34]: Completed!
+              - group [ref=e36] [cursor=pointer]:
+                - generic [ref=e39]:
+                  - generic [ref=e41]: 🏆
+                  - generic [ref=e42]:
+                    - heading "Goal Complete!" [level=3] [ref=e43]
+                    - generic [ref=e44]: 🎉 Achieved!
+                  - generic: ✨
+                  - generic: 🌟
+                  - generic: 💫
+                  - generic: ⭐
+                  - generic: ✨
+                  - generic: 🌟
+                  - generic: 💫
+                  - generic: ⭐
+        - img
+        - generic [ref=e47]:
+          - generic [ref=e48]:
+            - generic [ref=e49]: 🏔️
+            - generic [ref=e50]:
+              - heading "Test Goal for Nodes" [level=2] [ref=e51]
+              - paragraph [ref=e52]: 1 of 1 milestones
+          - generic [ref=e56]: 100%
+        - generic [ref=e58]:
+          - generic "Control Panel" [ref=e60]:
+            - button "Zoom In" [ref=e61] [cursor=pointer]:
+              - img [ref=e62]
+            - button "Zoom Out" [ref=e64] [cursor=pointer]:
+              - img [ref=e65]
+            - button "Fit View" [ref=e67] [cursor=pointer]:
+              - img [ref=e68]
+          - img "Mini Map" [ref=e72]
+        - generic [ref=e74]:
+          - generic [ref=e75]: Drag background to pan
+          - generic [ref=e76]: "|"
+          - generic [ref=e77]: Scroll to zoom
+    - link "← Discover" [ref=e80] [cursor=pointer]:
+      - /url: /discover
+      - generic [ref=e81]: ←
+      - generic [ref=e82]: Discover
+    - generic [ref=e83]:
+      - link "Sign In" [ref=e84] [cursor=pointer]:
+        - /url: /login
+        - img [ref=e88]
+        - generic [ref=e93]: Sign In
+        - img [ref=e94]
+      - button "📤 Share" [ref=e97] [cursor=pointer]:
+        - generic [ref=e98]: 📤
+        - generic [ref=e99]: Share
+    - generic [ref=e103]:
+      - button "🚶 Follow" [ref=e104] [cursor=pointer]:
+        - generic [ref=e105]: 🚶
+        - generic [ref=e106]: Follow
+      - button "React ✨" [disabled] [ref=e109]:
+        - generic [ref=e110]: React ✨
+      - button "🚶 0 • 💬 0 →" [ref=e111] [cursor=pointer]:
+        - generic [ref=e112]:
+          - generic [ref=e113]: 🚶 0
+          - generic [ref=e114]: •
+          - generic [ref=e115]: 💬 0
+        - generic [ref=e116]: →
+  - alert [ref=e117]
+```

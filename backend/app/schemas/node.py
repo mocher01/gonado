@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from uuid import UUID
 from datetime import datetime
 from typing import Optional, Dict, Any, List
@@ -17,6 +17,18 @@ class NodeCreate(BaseModel):
     node_type: NodeType = NodeType.TASK
     can_parallel: bool = False
     estimated_duration: Optional[int] = None
+    # Difficulty level (1-5, default 3)
+    difficulty: int = 3
+    # Sequential/Parallel structuring (Issue #63)
+    is_sequential: bool = True
+    parallel_group: Optional[int] = None
+
+    @field_validator('difficulty')
+    @classmethod
+    def validate_difficulty(cls, v: int) -> int:
+        if v < 1 or v > 5:
+            raise ValueError('Difficulty must be between 1 and 5')
+        return v
 
 
 class NodeUpdate(BaseModel):
@@ -31,6 +43,18 @@ class NodeUpdate(BaseModel):
     node_type: Optional[NodeType] = None
     can_parallel: Optional[bool] = None
     estimated_duration: Optional[int] = None
+    # Difficulty level (1-5)
+    difficulty: Optional[int] = None
+    # Sequential/Parallel structuring (Issue #63)
+    is_sequential: Optional[bool] = None
+    parallel_group: Optional[int] = None
+
+    @field_validator('difficulty')
+    @classmethod
+    def validate_difficulty(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None and (v < 1 or v > 5):
+            raise ValueError('Difficulty must be between 1 and 5')
+        return v
 
 
 class NodeStatusUpdate(BaseModel):
@@ -77,6 +101,13 @@ class NodeResponse(BaseModel):
     node_type: NodeType
     can_parallel: bool
     estimated_duration: Optional[int]
+    # Difficulty level (1-5)
+    difficulty: int = 3
+    # Sequential/Parallel structuring (Issue #63)
+    is_sequential: bool = True
+    parallel_group: Optional[int] = None
+    # Computed field: can this node be interacted with?
+    can_interact: bool = True
 
     class Config:
         from_attributes = True
@@ -86,6 +117,13 @@ class NodeWithDependenciesResponse(NodeResponse):
     """Node response including dependency information."""
     depends_on: List[DependencyResponse] = []
     dependents: List[DependencyResponse] = []
+
+
+class CanInteractResponse(BaseModel):
+    """Response for checking if user can interact with a node."""
+    can_interact: bool
+    reason: Optional[str] = None
+    blocking_nodes: List[UUID] = []
 
 
 # Social summary schemas
