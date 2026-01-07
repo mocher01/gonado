@@ -181,6 +181,7 @@ function BPMNQuestMapInner({
     useNodesState: typeof import("@xyflow/react").useNodesState;
     useEdgesState: typeof import("@xyflow/react").useEdgesState;
     MarkerType: typeof import("@xyflow/react").MarkerType;
+    useReactFlow: typeof import("@xyflow/react").useReactFlow;
   } | null>(null);
 
   useEffect(() => {
@@ -194,6 +195,7 @@ function BPMNQuestMapInner({
         useNodesState: mod.useNodesState,
         useEdgesState: mod.useEdgesState,
         MarkerType: mod.MarkerType,
+        useReactFlow: mod.useReactFlow,
       });
     });
   }, []);
@@ -646,6 +648,11 @@ function BPMNQuestMapInner({
         defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
         minZoom={0.3}
         maxZoom={2}
+        panOnDrag={true}
+        zoomOnScroll={true}
+        zoomOnPinch={true}
+        panOnScroll={false}
+        fitView={false}
         defaultEdgeOptions={{
           type: "quest",
           markerEnd: { type: MarkerType.ArrowClosed },
@@ -686,21 +693,37 @@ function BPMNQuestMapInner({
         </Panel>
 
         {/* MiniMap + Controls - Bottom Left (above visitor bar, below community pulse) */}
-        <Panel position="bottom-left" className="!mb-36 !ml-4">
-          <div className="flex flex-col gap-2">
+        <Panel position="bottom-left" className="!mb-36 !ml-4 z-[100]">
+          <div className="flex flex-col gap-2 pointer-events-auto">
             {/* Zoom Controls */}
-            <div className="bg-slate-900/90 backdrop-blur-sm border border-white/20 rounded-xl overflow-hidden">
+            <div className="bg-slate-900/90 backdrop-blur-sm border border-white/20 rounded-xl overflow-hidden pointer-events-auto">
               <Controls
-                className="!bg-transparent !border-0 !m-0 !p-0 !static !shadow-none [&>button]:!w-8 [&>button]:!h-8 [&>button]:!bg-transparent [&>button]:hover:!bg-white/10 [&>button]:!border-0"
-                showInteractive={false}
+                showZoom={true}
+                showFitView={true}
+                showInteractive={true}
                 orientation="horizontal"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  margin: 0,
+                  padding: 0,
+                  position: 'static',
+                  boxShadow: 'none'
+                }}
               />
             </div>
             {/* MiniMap */}
-            <div className="bg-slate-900/90 backdrop-blur-sm border border-white/20 rounded-xl overflow-hidden">
+            <div className="bg-slate-900/90 backdrop-blur-sm border border-white/20 rounded-xl overflow-hidden pointer-events-auto">
               <MiniMap
-                className="!border-0 !m-0 !static !rounded-none"
-                style={{ width: 160, height: 100, background: "#1e293b" }}
+                style={{
+                  width: 160,
+                  height: 100,
+                  background: "#1e293b",
+                  border: 'none',
+                  margin: 0,
+                  position: 'static',
+                  borderRadius: 0
+                }}
                 nodeColor={(node) => {
                   if (node.id === "start" || node.id === "end") return theme.pathColor;
                   const status = (node.data as { status?: string })?.status;
@@ -709,8 +732,8 @@ function BPMNQuestMapInner({
                   return "#64748b";
                 }}
                 maskColor="rgba(30, 41, 59, 0.7)"
-                pannable
-                zoomable
+                pannable={true}
+                zoomable={true}
               />
             </div>
           </div>

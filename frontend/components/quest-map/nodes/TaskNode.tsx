@@ -240,8 +240,8 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
 
         {/* Social Activity Bar - clickable area for social features */}
         {(hasSocialActivity || onSocialClick) && (
-          <div
-            className="px-4 py-2.5 flex items-center justify-center gap-3 cursor-pointer transition-all hover:brightness-110"
+          <motion.div
+            className="group relative px-4 py-3 flex items-center justify-center gap-3 cursor-pointer transition-all"
             style={{
               background: hasSocialActivity
                 ? "linear-gradient(135deg, rgba(20, 184, 166, 0.15), rgba(6, 182, 212, 0.15))"
@@ -249,48 +249,93 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
               borderBottom: "1px solid rgba(20, 184, 166, 0.3)",
             }}
             onClick={handleSocialClick}
-            title="Click to interact with this node"
+            title="Click to view reactions, comments, and resources"
+            whileHover={{
+              background: "linear-gradient(135deg, rgba(20, 184, 166, 0.25), rgba(6, 182, 212, 0.25))",
+              scale: 1.02,
+            }}
+            whileTap={{ scale: 0.98 }}
+            animate={{
+              boxShadow: hasSocialActivity
+                ? ["0 0 0 rgba(20, 184, 166, 0)", "0 0 12px rgba(20, 184, 166, 0.3)", "0 0 0 rgba(20, 184, 166, 0)"]
+                : ["0 0 0 rgba(20, 184, 166, 0)", "0 0 8px rgba(20, 184, 166, 0.2)", "0 0 0 rgba(20, 184, 166, 0)"],
+            }}
+            transition={{
+              boxShadow: {
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+              },
+            }}
           >
-            {/* Reactions indicator with glow */}
-            {hasReactions && (
-              <span
-                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
-                style={{
-                  background: "rgba(251, 191, 36, 0.2)",
-                  boxShadow: "0 0 12px rgba(251, 191, 36, 0.4)",
-                  border: "1px solid rgba(251, 191, 36, 0.3)",
-                }}
-              >
-                <span className="text-amber-400">🔥</span>
-                <span className="text-amber-300">{socialData!.reactions_total}</span>
-              </span>
-            )}
+            {/* Hover overlay effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-teal-500/0 via-teal-500/10 to-teal-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-            {/* Comments badge */}
-            {hasComments && (
-              <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-cyan-500/20 border border-cyan-500/30">
-                <span>💬</span>
-                <span className="text-cyan-300">{socialData!.comments_count}</span>
-              </span>
-            )}
+            {/* Content wrapper */}
+            <div className="relative flex items-center justify-center gap-3">
+              {/* Chat icon - always visible as visual affordance */}
+              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-teal-500/20 group-hover:bg-teal-500/30 transition-colors">
+                <svg className="w-3 h-3 text-teal-300 group-hover:text-teal-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
 
-            {/* Resources badge */}
-            {hasResources && (
-              <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-teal-500/20 border border-teal-500/30">
-                <span>📦</span>
-                <span className="text-teal-300">{socialData!.resources_count}</span>
-              </span>
-            )}
+              {/* Reactions indicator with glow */}
+              {hasReactions && (
+                <span
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
+                  style={{
+                    background: "rgba(251, 191, 36, 0.2)",
+                    boxShadow: "0 0 12px rgba(251, 191, 36, 0.4)",
+                    border: "1px solid rgba(251, 191, 36, 0.3)",
+                  }}
+                >
+                  <span className="text-amber-400">🔥</span>
+                  <span className="text-amber-300">{socialData!.reactions_total}</span>
+                </span>
+              )}
 
-            {/* If no activity but click handler exists, show CTA */}
-            {!hasSocialActivity && onSocialClick && (
-              <span className="text-xs text-teal-300 flex items-center gap-2 font-medium">
-                <span className="animate-pulse">✨</span>
-                <span>Click to react or comment</span>
-                <span className="animate-pulse">✨</span>
-              </span>
-            )}
-          </div>
+              {/* Comments badge */}
+              {hasComments && (
+                <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-cyan-500/20 border border-cyan-500/30">
+                  <span>💬</span>
+                  <span className="text-cyan-300">{socialData!.comments_count}</span>
+                </span>
+              )}
+
+              {/* Resources badge */}
+              {hasResources && (
+                <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-teal-500/20 border border-teal-500/30">
+                  <span>📦</span>
+                  <span className="text-teal-300">{socialData!.resources_count}</span>
+                </span>
+              )}
+
+              {/* If no activity but click handler exists, show CTA */}
+              {!hasSocialActivity && onSocialClick && (
+                <motion.span
+                  className="text-xs text-teal-300 group-hover:text-teal-200 flex items-center gap-2 font-medium"
+                  animate={{
+                    opacity: [0.7, 1, 0.7],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                >
+                  <span>Click to react or comment</span>
+                </motion.span>
+              )}
+
+              {/* Arrow hint on hover */}
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+                <svg className="w-4 h-4 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </motion.div>
         )}
 
         {/* Content */}
