@@ -132,10 +132,12 @@ function AuthHeader({
   user,
   isLoading,
   onLogout,
+  goalId,
 }: {
   user: { username: string; display_name?: string | null; avatar_url?: string | null } | null;
   isLoading: boolean;
   onLogout: () => void;
+  goalId: string;
 }) {
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -179,7 +181,7 @@ function AuthHeader({
   if (!user) {
     return (
       <Link
-        href="/login"
+        href={`/login?returnUrl=${encodeURIComponent(`/goals/${goalId}`)}`}
         className="group relative flex items-center gap-2.5 px-5 py-2.5 rounded-full overflow-hidden transition-all duration-300 hover:scale-105"
       >
         {/* Glass background with gradient */}
@@ -2256,7 +2258,7 @@ export default function GoalDetailPage() {
                   </svg>
                 </button>
               )}
-              <AuthHeader user={user} isLoading={authLoading} onLogout={logout} />
+              <AuthHeader user={user} isLoading={authLoading} onLogout={logout} goalId={goalId} />
             </div>
           </div>
 
@@ -2375,7 +2377,7 @@ export default function GoalDetailPage() {
           {/* Top right: Auth header + Visibility toggle + Share button */}
           <div className="absolute top-4 right-4 z-30 flex items-center gap-3">
             {/* Auth header */}
-            <AuthHeader user={user} isLoading={authLoading} onLogout={logout} />
+            <AuthHeader user={user} isLoading={authLoading} onLogout={logout} goalId={goalId} />
 
             {/* Visibility toggle (owner only) */}
             {isOwner && (
@@ -2563,7 +2565,7 @@ export default function GoalDetailPage() {
               <span>{user ? "Dashboard" : "Discover"}</span>
             </Link>
             {/* Auth header */}
-            <AuthHeader user={user} isLoading={authLoading} onLogout={logout} />
+            <AuthHeader user={user} isLoading={authLoading} onLogout={logout} goalId={goalId} />
           </div>
 
           {generating ? (

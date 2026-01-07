@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores";
 import { api } from "@/lib/api";
 
 export function useAuth(requireAuth = false) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, accessToken, isLoading, setUser, setTokens, logout, initialize } = useAuthStore();
 
   useEffect(() => {
@@ -15,9 +16,10 @@ export function useAuth(requireAuth = false) {
 
   useEffect(() => {
     if (!isLoading && requireAuth && !user) {
-      router.push("/login");
+      const returnUrl = pathname ? `?returnUrl=${encodeURIComponent(pathname)}` : "";
+      router.push(`/login${returnUrl}`);
     }
-  }, [isLoading, requireAuth, user, router]);
+  }, [isLoading, requireAuth, user, router, pathname]);
 
   const login = async (email: string, password: string) => {
     const tokens = await api.login(email, password);
