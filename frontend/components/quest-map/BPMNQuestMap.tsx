@@ -332,7 +332,8 @@ function BPMNQuestMapInner({
               onEdit: onNodeEdit
                 ? () => onNodeEdit(parallelNode.id)
                 : undefined,
-              onSocialClick: onNodeSocialClick
+              // Only show social interaction prompts for visitors, not owners
+              onSocialClick: !isOwner && onNodeSocialClick
                 ? (screenPosition: { x: number; y: number }) => onNodeSocialClick(parallelNode, screenPosition)
                 : undefined,
               socialData: nodeSocialData?.[parallelNode.id],
@@ -433,7 +434,8 @@ function BPMNQuestMapInner({
             onEdit: onNodeEdit
               ? () => onNodeEdit(node.id)
               : undefined,
-            onSocialClick: onNodeSocialClick
+            // Only show social interaction prompts for visitors, not owners
+            onSocialClick: !isOwner && onNodeSocialClick
               ? (screenPosition: { x: number; y: number }) => onNodeSocialClick(node, screenPosition)
               : undefined,
             socialData: nodeSocialData?.[node.id],
@@ -661,36 +663,6 @@ function BPMNQuestMapInner({
         className="z-10"
       >
         <Background color="#ffffff10" gap={32} />
-
-        {/* Header Panel */}
-        <Panel position="top-center" className="!m-0 !p-0">
-          <div className="p-6 bg-gradient-to-b from-black/60 to-transparent">
-            <div className="flex items-center justify-center gap-4">
-              <span className="text-4xl">{theme.icon}</span>
-              <div className="text-center">
-                <h2 className="text-2xl font-bold text-white">{goalTitle}</h2>
-                <p className="text-gray-400">
-                  {completedCount} of {inputNodes.length} milestones
-                </p>
-              </div>
-            </div>
-            {/* Progress bar */}
-            <div className="mt-4 max-w-md mx-auto flex items-center gap-4">
-              <div className="flex-1 h-3 bg-white/10 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: theme.nodeActive }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 1 }}
-                />
-              </div>
-              <span className="text-xl font-bold text-white">
-                {Math.round(progress)}%
-              </span>
-            </div>
-          </div>
-        </Panel>
 
         {/* MiniMap + Controls - Bottom Left (above visitor bar, below community pulse) */}
         <Panel position="bottom-left" className="!mb-36 !ml-4 z-[100]">
