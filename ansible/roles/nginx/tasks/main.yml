@@ -1,0 +1,62 @@
+---
+- name: Install Nginx
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: Remove default nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Create nginx config directory
+  file:
+    path: /etc/nginx/conf.d
+    state: directory
+    mode: '0755'
+
+- name: Copy nginx main config
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    mode: '0644'
+  notify: Reload nginx
+
+- name: Copy gonado site config
+  template:
+    src: gonado.conf.j2
+    dest: /etc/nginx/sites-available/gonado.conf
+    mode: '0644'
+  notify: Reload nginx
+
+- name: Enable gonado site
+  file:
+    src: /etc/nginx/sites-available/gonado.conf
+    dest: /etc/nginx/sites-enabled/gonado.conf
+    state: link
+  notify: Reload nginx
+
+- name: Create nginx snippets directory
+  file:
+    path: /etc/nginx/snippets
+    state: directory
+    mode: '0755'
+
+- name: Copy location snippets
+  copy:
+    src: gonado-locations.conf
+    dest: /etc/nginx/snippets/gonado-locations.conf
+    mode: '0644'
+  notify: Reload nginx
+
+- name: Test nginx configuration
+  command: nginx -t
+  register: nginx_test
+  changed_when: false
+
+- name: Start and enable nginx
+  service:
+    name: nginx
+    state: started
+    enabled: yes

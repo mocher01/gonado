@@ -69,3 +69,42 @@ class MoodUpdate(BaseModel):
 class GoalListResponse(BaseModel):
     goals: List[GoalResponse]
     total: int
+
+
+class GoalOwnerInfo(BaseModel):
+    """Basic user info for goal owner"""
+    user_id: UUID
+    username: str
+    display_name: Optional[str]
+    avatar_url: Optional[str]
+
+
+class GoalDiscoveryResponse(BaseModel):
+    """Enriched goal response for discovery features with owner info"""
+    id: UUID
+    user_id: UUID
+    title: str
+    description: Optional[str]
+    category: Optional[str]
+    visibility: GoalVisibility
+    status: GoalStatus
+    world_theme: str
+    target_date: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+    current_mood: Optional[str] = None
+    mood_updated_at: Optional[datetime] = None
+    struggle_detected_at: Optional[datetime] = None
+    struggle_dismissed_at: Optional[datetime] = None
+    no_progress_threshold_days: Optional[int] = 7
+    hard_node_threshold_days: Optional[int] = 14
+    # Owner info
+    owner: GoalOwnerInfo
+
+    class Config:
+        from_attributes = True
+
+
+class GoalDiscoveryListResponse(BaseModel):
+    goals: List[GoalDiscoveryResponse]
+    total: int

@@ -1,0 +1,55 @@
+---
+- name: Install certbot and nginx plugin
+  apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: yes
+
+- name: Create webroot directory for ACME challenges
+  file:
+    path: /var/www/certbot
+    state: directory
+    mode: '0755'
+    owner: www-data
+    group: www-data
+
+- name: Check if certificate exists
+  stat:
+    path: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+  register: cert_exists
+
+- name: Obtain SSL certificate (webroot method)
+  command: >
+    certbot certonly
+    --webroot
+    --webroot-path=/var/www/certbot
+    --email {{ admin_email }}
+    --agree-tos
+    --no-eff-email
+    --non-interactive
+    -d {{ domain_name }}
+  when: not cert_exists.stat.exists
+  notify: Reload nginx
+
+- name: Set up automatic certificate renewal
+  cron:
+    name: "Certbot renewal"
+    minute: "0"
+    hour: "3"
+    day: "*"
+    month: "*"
+    weekday: "*"
+    job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
+    user: root
+
+- name: Test certificate renewal
+  command: certbot renew --dry-run
+  register: renewal_test
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display renewal test result
+  debug:
+    msg: "Certificate renewal test {{ 'passed' if renewal_test.rc == 0 else 'failed' }}"

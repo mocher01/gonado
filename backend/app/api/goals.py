@@ -6,7 +6,7 @@ from sqlalchemy import select, func, or_, delete
 from app.database import get_db
 from app.api.deps import get_current_user, get_optional_user
 from datetime import datetime
-from app.schemas.goal import GoalCreate, GoalUpdate, GoalResponse, GoalListResponse, MoodUpdate, StruggleStatusResponse
+from app.schemas.goal import GoalCreate, GoalUpdate, GoalResponse, GoalListResponse, MoodUpdate, StruggleStatusResponse, GoalDiscoveryResponse, GoalDiscoveryListResponse, GoalOwnerInfo
 from datetime import timedelta
 from app.models.interaction import InteractionType
 from app.schemas.node import NodeResponse
@@ -152,12 +152,26 @@ async def list_goals(
     user_id: Optional[UUID] = None,
     category: Optional[str] = None,
     status: Optional[GoalStatus] = None,
+    search: Optional[str] = None,
+    sort: Optional[str] = Query(None, regex="^(newest|trending|almost_done)$"),
+    needs_help: Optional[bool] = None,
     limit: int = Query(20, le=100),
     offset: int = 0,
     current_user: Optional[User] = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """List goals with optional filters."""
+    """List goals with optional filters.
+
+    Args:
+        user_id: Filter by user ID
+        category: Filter by category
+        status: Filter by goal status
+        search: Search in title and description (case-insensitive)
+        sort: Sort order - "newest" (default), "trending", "almost_done"
+        needs_help: Filter goals where user is struggling (mood or is_struggling)
+        limit: Maximum number of results (max 100)
+        offset: Pagination offset
+    """
     query = select(Goal)
 
     if user_id:
@@ -174,16 +188,257 @@ async def list_goals(
     if status:
         query = query.where(Goal.status == status)
 
+    # Search filter
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.where(
+            or_(
+                Goal.title.ilike(search_pattern),
+                Goal.description.ilike(search_pattern)
+            )
+        )
+
+    # Needs help filter
+    if needs_help is not None:
+        if needs_help:
+            query = query.where(
+                or_(
+                    Goal.current_mood.in_(["struggling", "stuck"]),
+                    Goal.struggle_detected_at.isnot(None)
+                )
+            )
+
     # Count
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar()
 
+    # Sorting
+    if sort == "trending":
+        # Trending: order by reaction_count + comment_count from last 7 days
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+
+        # Subquery for reaction count
+        reaction_count = (
+            select(func.count(Interaction.id))
+            .where(
+                Interaction.target_type == TargetType.GOAL,
+                Interaction.target_id == Goal.id,
+                Interaction.interaction_type == InteractionType.REACTION,
+                Interaction.created_at >= seven_days_ago
+            )
+            .correlate(Goal)
+            .scalar_subquery()
+        )
+
+        # Subquery for comment count
+        comment_count = (
+            select(func.count(Comment.id))
+            .where(
+                Comment.target_type == CommentTargetType.GOAL,
+                Comment.target_id == Goal.id,
+                Comment.created_at >= seven_days_ago
+            )
+            .correlate(Goal)
+            .scalar_subquery()
+        )
+
+        query = query.order_by((reaction_count + comment_count).desc())
+    elif sort == "almost_done":
+        # Almost done: goals with >50% progress, ordered by progress DESC
+        # Calculate progress as (completed_nodes / total_nodes)
+        completed_nodes = (
+            select(func.count(Node.id))
+            .where(
+                Node.goal_id == Goal.id,
+                Node.status == "completed"
+            )
+            .correlate(Goal)
+            .scalar_subquery()
+        )
+
+        total_nodes = (
+            select(func.count(Node.id))
+            .where(Node.goal_id == Goal.id)
+            .correlate(Goal)
+            .scalar_subquery()
+        )
+
+        # Filter: progress > 50% (completed_nodes > total_nodes / 2)
+        # Only include goals with at least 1 node
+        query = query.where(total_nodes > 0)
+        query = query.where(completed_nodes > (total_nodes / 2))
+        query = query.order_by((completed_nodes * 100.0 / total_nodes).desc())
+    else:
+        # Default: newest first
+        query = query.order_by(Goal.created_at.desc())
+
     # Fetch
-    query = query.order_by(Goal.created_at.desc()).offset(offset).limit(limit)
+    query = query.offset(offset).limit(limit)
     result = await db.execute(query)
     goals = result.scalars().all()
 
     return GoalListResponse(goals=goals, total=total)
+
+
+@router.get("/discover", response_model=GoalDiscoveryListResponse)
+async def discover_goals(
+    category: Optional[str] = None,
+    status: Optional[GoalStatus] = None,
+    search: Optional[str] = None,
+    sort: Optional[str] = Query("newest", regex="^(newest|trending|almost_done)$"),
+    needs_help: Optional[bool] = None,
+    limit: int = Query(20, le=100),
+    offset: int = 0,
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Discover public goals with enriched data including owner information.
+
+    This endpoint is optimized for discovery features and includes:
+    - Goal owner's display_name and avatar_url
+    - All filtering options: search, category, status, needs_help
+    - Sorting options: newest, trending, almost_done
+
+    Args:
+        category: Filter by category
+        status: Filter by goal status
+        search: Search in title and description (case-insensitive)
+        sort: Sort order - "newest" (default), "trending", "almost_done"
+        needs_help: Filter goals where user is struggling
+        limit: Maximum number of results (max 100)
+        offset: Pagination offset
+    """
+    # Build query with join to get user info
+    query = select(Goal, User).join(User, Goal.user_id == User.id)
+
+    # Only show public goals in discovery
+    query = query.where(Goal.visibility == GoalVisibility.PUBLIC)
+
+    if category:
+        query = query.where(Goal.category == category)
+    if status:
+        query = query.where(Goal.status == status)
+
+    # Search filter
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.where(
+            or_(
+                Goal.title.ilike(search_pattern),
+                Goal.description.ilike(search_pattern)
+            )
+        )
+
+    # Needs help filter
+    if needs_help is not None:
+        if needs_help:
+            query = query.where(
+                or_(
+                    Goal.current_mood.in_(["struggling", "stuck"]),
+                    Goal.struggle_detected_at.isnot(None)
+                )
+            )
+
+    # Count before sorting (count distinct goals)
+    count_query = select(func.count(Goal.id)).select_from(
+        query.with_only_columns(Goal.id).subquery()
+    )
+    total = (await db.execute(count_query)).scalar()
+
+    # Sorting
+    if sort == "trending":
+        # Trending: order by reaction_count + comment_count from last 7 days
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+
+        # Subquery for reaction count
+        reaction_count = (
+            select(func.count(Interaction.id))
+            .where(
+                Interaction.target_type == TargetType.GOAL,
+                Interaction.target_id == Goal.id,
+                Interaction.interaction_type == InteractionType.REACTION,
+                Interaction.created_at >= seven_days_ago
+            )
+            .correlate(Goal)
+            .scalar_subquery()
+        )
+
+        # Subquery for comment count
+        comment_count = (
+            select(func.count(Comment.id))
+            .where(
+                Comment.target_type == CommentTargetType.GOAL,
+                Comment.target_id == Goal.id,
+                Comment.created_at >= seven_days_ago
+            )
+            .correlate(Goal)
+            .scalar_subquery()
+        )
+
+        query = query.order_by((reaction_count + comment_count).desc())
+    elif sort == "almost_done":
+        # Almost done: goals with >50% progress, ordered by progress DESC
+        completed_nodes = (
+            select(func.count(Node.id))
+            .where(
+                Node.goal_id == Goal.id,
+                Node.status == "completed"
+            )
+            .correlate(Goal)
+            .scalar_subquery()
+        )
+
+        total_nodes = (
+            select(func.count(Node.id))
+            .where(Node.goal_id == Goal.id)
+            .correlate(Goal)
+            .scalar_subquery()
+        )
+
+        # Filter: progress > 50%, only goals with at least 1 node
+        query = query.where(total_nodes > 0)
+        query = query.where(completed_nodes > (total_nodes / 2))
+        query = query.order_by((completed_nodes * 100.0 / total_nodes).desc())
+    else:
+        # Default: newest first
+        query = query.order_by(Goal.created_at.desc())
+
+    # Fetch with pagination
+    query = query.offset(offset).limit(limit)
+    result = await db.execute(query)
+    rows = result.all()
+
+    # Build enriched response with owner info
+    enriched_goals = []
+    for goal, user in rows:
+        enriched_goal = GoalDiscoveryResponse(
+            id=goal.id,
+            user_id=goal.user_id,
+            title=goal.title,
+            description=goal.description,
+            category=goal.category,
+            visibility=goal.visibility,
+            status=goal.status,
+            world_theme=goal.world_theme,
+            target_date=goal.target_date,
+            created_at=goal.created_at,
+            updated_at=goal.updated_at,
+            current_mood=goal.current_mood,
+            mood_updated_at=goal.mood_updated_at,
+            struggle_detected_at=goal.struggle_detected_at,
+            struggle_dismissed_at=goal.struggle_dismissed_at,
+            no_progress_threshold_days=goal.no_progress_threshold_days,
+            hard_node_threshold_days=goal.hard_node_threshold_days,
+            owner=GoalOwnerInfo(
+                user_id=user.id,
+                username=user.username,
+                display_name=user.display_name,
+                avatar_url=user.avatar_url
+            )
+        )
+        enriched_goals.append(enriched_goal)
+
+    return GoalDiscoveryListResponse(goals=enriched_goals, total=total)
 
 
 @router.get("/{goal_id}", response_model=GoalResponse)

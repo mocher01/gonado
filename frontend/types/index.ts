@@ -143,3 +143,38 @@ export interface AuthTokens {
   refresh_token: string;
   token_type: string;
 }
+
+export interface UserStats {
+  goals_created: number;
+  goals_completed: number;
+  achiever_score: number;
+  supporter_score: number;
+  comments_given: number;
+  reactions_given: number;
+  followers_count: number;
+  following_count: number;
+}
+
+export interface UserBadge {
+  id: string;
+  name: string;
+  description: string | null;
+  icon_url: string | null;
+  category: string;
+  rarity: "common" | "rare" | "epic" | "legendary";
+  earned_at: string;
+}
+
+export interface UserProfile {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  xp: number;
+  level: number;
+  streak_days: number;
+  created_at: string;
+  stats: UserStats | null;
+  badges: UserBadge[];
+}

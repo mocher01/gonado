@@ -9,4 +9,7 @@
   roles:
     - common
     - docker
+    - nginx
+    - role: ssl
+      when: ssl_enabled | default(false)
     - app

@@ -1,21 +1,24 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/Card";
 import { MobileFeed, SwipeIndicator } from "@/components/mobile";
+import { FilterBar, SearchBar } from "@/components/discover";
 import type { Goal } from "@/types";
 
 /**
- * DiscoverPage - Browse Public Goals (Issue #69)
- * ==============================================
+ * DiscoverPage - Browse Public Goals with Filters & Search
+ * =========================================================
  *
  * Shows public goals with responsive layouts:
  * - Mobile: TikTok-style vertical swipe feed
- * - Desktop: Traditional grid layout
+ * - Desktop: Traditional grid layout with filters
+ * - Search, category filter, sort, and needs help toggle
  */
 
 // Custom hook for viewport detection
@@ -38,16 +41,41 @@ function useIsMobile() {
   return isMobile;
 }
 
-export default function DiscoverPage() {
+function DiscoverPageContent() {
   const { user, isAuthenticated, logout } = useAuth(false); // Don't require auth
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
   const [showSwipeHint, setShowSwipeHint] = useState(false);
 
+  // Filter state from URL params
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [category, setCategory] = useState(searchParams.get("category") || "");
+  const [sort, setSort] = useState<'newest' | 'trending' | 'almost_done'>(
+    (searchParams.get("sort") as 'newest' | 'trending' | 'almost_done') || "newest"
+  );
+  const [needsHelp, setNeedsHelp] = useState(searchParams.get("needs_help") === "true");
+
+  // Load goals when filters change
   useEffect(() => {
     loadGoals();
-  }, []);
+  }, [search, category, sort, needsHelp]);
+
+  // Update URL params when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (category) params.set("category", category);
+    if (sort !== "newest") params.set("sort", sort);
+    if (needsHelp) params.set("needs_help", "true");
+
+    const queryString = params.toString();
+    const newUrl = queryString ? `/discover?${queryString}` : "/discover";
+    router.replace(newUrl, { scroll: false });
+  }, [search, category, sort, needsHelp, router]);
 
   // Show swipe hint on mobile after goals load
   useEffect(() => {
@@ -60,8 +88,14 @@ export default function DiscoverPage() {
   }, [isMobile, goals.length, loading]);
 
   const loadGoals = async () => {
+    setLoading(true);
     try {
-      const response = await api.getGoals();
+      const response = await api.getGoals({
+        search: search || undefined,
+        category: category || undefined,
+        sort: sort !== "newest" ? sort : undefined,
+        needs_help: needsHelp || undefined,
+      });
       setGoals(response.goals || []);
     } catch (error) {
       console.error("Failed to load goals:", error);
@@ -72,7 +106,14 @@ export default function DiscoverPage() {
 
   const handleRefresh = useCallback(async () => {
     await loadGoals();
-  }, []);
+  }, [search, category, sort, needsHelp]);
+
+  const handleClearFilters = () => {
+    setSearch("");
+    setCategory("");
+    setSort("newest");
+    setNeedsHelp(false);
+  };
 
   const handleDismissSwipeHint = () => {
     setShowSwipeHint(false);
@@ -219,6 +260,25 @@ export default function DiscoverPage() {
         </motion.div>
       </div>
 
+      {/* Search and Filters */}
+      <div className="max-w-6xl mx-auto px-8">
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          isSearching={loading}
+        />
+
+        <FilterBar
+          category={category}
+          sort={sort}
+          needsHelp={needsHelp}
+          onCategoryChange={setCategory}
+          onSortChange={setSort}
+          onNeedsHelpChange={setNeedsHelp}
+          onClearAll={handleClearFilters}
+        />
+      </div>
+
       {/* Goals Grid */}
       <div className="max-w-6xl mx-auto px-8 pb-16">
         {loading ? (
@@ -308,5 +368,22 @@ export default function DiscoverPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Wrapper component with Suspense boundary
+export default function DiscoverPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+          className="w-10 h-10 border-2 border-primary-500 border-t-transparent rounded-full"
+        />
+      </div>
+    }>
+      <DiscoverPageContent />
+    </Suspense>
   );
 }

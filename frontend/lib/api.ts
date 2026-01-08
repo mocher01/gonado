@@ -1,4 +1,4 @@
-import type { User, Goal, Node, Update, AuthTokens, Notification, LeaderboardEntry, CanInteractResponse, NodeWithDependencies, DependencyType } from "@/types";
+import type { User, Goal, Node, Update, AuthTokens, Notification, LeaderboardEntry, CanInteractResponse, NodeWithDependencies, DependencyType, UserProfile } from "@/types";
 
 // Use relative URL - requests proxied through Next.js rewrites to backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
@@ -163,6 +163,15 @@ class ApiClient {
     return this.fetch<User>(`/users/${username}`);
   }
 
+  async getUserProfile(username: string): Promise<UserProfile> {
+    return this.fetch<UserProfile>(`/users/${username}`);
+  }
+
+  async getUserGoals(username: string): Promise<{ goals: Goal[]; total: number }> {
+    const user = await this.getUserByUsername(username);
+    return this.getGoals({ user_id: user.id });
+  }
+
   // Goals
   async createGoal(data: Partial<Goal>): Promise<Goal> {
     return this.fetch<Goal>("/goals", {
@@ -171,8 +180,22 @@ class ApiClient {
     });
   }
 
-  async getGoals(params?: { user_id?: string; category?: string; status?: string }): Promise<{ goals: Goal[]; total: number }> {
-    const query = new URLSearchParams(params as Record<string, string>).toString();
+  async getGoals(params?: {
+    user_id?: string;
+    category?: string;
+    status?: string;
+    search?: string;
+    sort?: 'newest' | 'trending' | 'almost_done';
+    needs_help?: boolean;
+  }): Promise<{ goals: Goal[]; total: number }> {
+    const query = new URLSearchParams(
+      Object.entries(params || {}).reduce((acc, [key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          acc[key] = String(value);
+        }
+        return acc;
+      }, {} as Record<string, string>)
+    ).toString();
     return this.fetch(`/goals${query ? `?${query}` : ""}`);
   }
 
