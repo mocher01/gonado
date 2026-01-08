@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Share - Copy Link', () => {
   test('Copy Link button shows in Share menu', async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
 
     // Find and click Share button
@@ -23,7 +23,7 @@ test.describe('Share - Copy Link', () => {
     // Grant clipboard permissions
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
 
     // Click Share button

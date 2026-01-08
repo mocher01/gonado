@@ -53,7 +53,7 @@ test.describe('Login', () => {
   });
 
   test('Preserves returnUrl parameter', async ({ page }) => {
-    const returnUrl = '/goals/e3dc9226-15d7-4421-903a-a4ece38dd586';
+    const returnUrl = '/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c';
     await page.goto(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
 
     // Page should load

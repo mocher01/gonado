@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Follow Button', () => {
   test('Shows "Follow" text instead of "Join Journey"', async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
 
     // Check Follow button exists (not "Join Journey")
@@ -18,7 +18,7 @@ test.describe('Follow Button', () => {
   });
 
   test('Shows login prompt when clicking Follow while not logged in', async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
 
     // Click Follow button

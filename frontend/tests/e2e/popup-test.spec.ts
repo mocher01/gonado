@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('NodeInteractionPopup - Unauthenticated', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
   });
 
@@ -14,8 +14,8 @@ test.describe('NodeInteractionPopup - Unauthenticated', () => {
     // Click to open popup
     await socialBar.click();
 
-    // Popup should appear
-    const popup = page.locator('text=Reactions').first();
+    // Popup should appear - look for SUPPORT or COMMENTS section
+    const popup = page.locator('text=/SUPPORT|COMMENTS/i').first();
     await expect(popup).toBeVisible({ timeout: 5000 });
 
     console.log('Popup opened successfully');
@@ -38,8 +38,8 @@ test.describe('NodeInteractionPopup - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    // Wait for popup
-    await page.waitForSelector('text=Reactions', { timeout: 5000 });
+    // Wait for popup (look for SUPPORT or COMMENTS section)
+    await page.waitForSelector('text=/SUPPORT|COMMENTS/i', { timeout: 5000 });
 
     // Check for reaction emojis
     const fireEmoji = page.locator('text=🔥').first();
@@ -62,8 +62,8 @@ test.describe('NodeInteractionPopup - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    // Wait for popup
-    await page.waitForSelector('text=Reactions', { timeout: 5000 });
+    // Wait for popup (look for SUPPORT or COMMENTS section)
+    await page.waitForSelector('text=/SUPPORT|COMMENTS/i', { timeout: 5000 });
 
     // Check buttons
     const viewAllBtn = page.locator('button:has-text("View all")');
@@ -80,8 +80,8 @@ test.describe('NodeInteractionPopup - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    // Wait for popup
-    const popup = page.locator('text=Reactions');
+    // Wait for popup (look for SUPPORT or COMMENTS section)
+    const popup = page.locator('text=/SUPPORT|COMMENTS/i');
     await expect(popup).toBeVisible({ timeout: 5000 });
 
     // Press Escape
@@ -98,8 +98,8 @@ test.describe('NodeInteractionPopup - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    // Wait for popup
-    const popup = page.locator('text=Reactions');
+    // Wait for popup (look for SUPPORT or COMMENTS section)
+    const popup = page.locator('text=/SUPPORT|COMMENTS/i');
     await expect(popup).toBeVisible({ timeout: 5000 });
 
     // Click backdrop (outside popup)
@@ -116,8 +116,8 @@ test.describe('NodeInteractionPopup - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    // Wait for popup
-    await page.waitForSelector('text=Reactions', { timeout: 5000 });
+    // Wait for popup (look for SUPPORT or COMMENTS section)
+    await page.waitForSelector('text=/SUPPORT|COMMENTS/i', { timeout: 5000 });
 
     // Check if Sacred Boost button is visible (it's at the bottom of popup)
     // For non-owner goals, this button should be visible

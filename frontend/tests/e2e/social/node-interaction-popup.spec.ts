@@ -119,8 +119,8 @@ test.describe('NodeInteractionPopup', () => {
       await clickOnNode(page, 0);
       await verifyPopupVisible(page);
 
-      // Look for reactions label or emoji buttons
-      const reactionsSection = page.locator('text=/Reactions/i');
+      // Look for SUPPORT section with reaction emojis
+      const reactionsSection = page.locator('text=/SUPPORT/i');
       await expect(reactionsSection).toBeVisible();
     });
 
@@ -128,8 +128,8 @@ test.describe('NodeInteractionPopup', () => {
       await clickOnNode(page, 0);
       await verifyPopupVisible(page);
 
-      // Look for comments label
-      const commentsSection = page.locator('text=/Comments/i');
+      // Look for COMMENTS section label
+      const commentsSection = page.locator('text=/COMMENTS/i');
       await expect(commentsSection).toBeVisible();
     });
 

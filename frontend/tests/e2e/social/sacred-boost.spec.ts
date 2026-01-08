@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Sacred Boost', () => {
   test('Boost button visible in popup', async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
 
     // Open node popup
@@ -20,7 +20,7 @@ test.describe('Sacred Boost', () => {
   });
 
   test('Boost button in support panel', async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
 
     // Click arrow to open support panel
@@ -45,7 +45,7 @@ test.describe('Sacred Boost', () => {
 
   test('Boost button opens modal when clicked (authenticated)', async ({ page }) => {
     // Note: This test requires authentication setup
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
 
     // Open node popup
@@ -78,7 +78,7 @@ test.describe('Sacred Boost', () => {
     // This test requires mocking authentication or using a logged-in session
     // For now, we'll just check the modal structure when visible
 
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
 
     // Check for modal elements (may require auth to see)
@@ -94,7 +94,7 @@ test.describe('Sacred Boost', () => {
   });
 
   test('Boost requires authentication', async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
 
     // Open support panel
@@ -124,7 +124,7 @@ test.describe('Sacred Boost', () => {
   });
 
   test('Boost count displayed on goal page', async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
 
     // Look for boost count display

@@ -14,7 +14,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Reactions - Unauthenticated', () => {
   test('Can view reaction counts but cannot interact', async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
 
     // Click node social bar to open popup
@@ -42,7 +42,7 @@ test.describe('Reactions - Unauthenticated', () => {
 
 test.describe('Reactions - Display Locations', () => {
   test('Check where reactions are displayed', async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
     await page.waitForTimeout(2000);
 
@@ -66,7 +66,7 @@ test.describe('Reactions - Display Locations', () => {
     // 4. Node Interaction Popup
     await nodeSocialBar.click();
     await page.waitForTimeout(500);
-    const popupReactions = page.locator('text=Reactions').first();
+    const popupReactions = page.locator('text=/SUPPORT|COMMENTS/i').first();
     const popupVisible = await popupReactions.isVisible().catch(() => false);
     console.log('4. Node Interaction Popup: ', popupVisible ? '✓ VISIBLE' : '✗ NOT VISIBLE');
 
@@ -77,7 +77,7 @@ test.describe('Reactions - Display Locations', () => {
   });
 
   test('Check reaction counts in different locations match', async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
     await page.waitForTimeout(2000);
 

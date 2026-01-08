@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('React Flow Controls and MiniMap', async ({ page }) => {
-  await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+  await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
   await page.waitForSelector('.react-flow', { timeout: 15000 });
 
   // Check Controls exist

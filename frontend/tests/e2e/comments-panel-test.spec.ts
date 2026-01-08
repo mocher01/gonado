@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('NodeCommentsPanel - Unauthenticated', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/goals/e3dc9226-15d7-4421-903a-a4ece38dd586');
+    await page.goto('/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c');
     await page.waitForSelector('.react-flow', { timeout: 15000 });
   });
 
@@ -12,8 +12,8 @@ test.describe('NodeCommentsPanel - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    // Wait for popup
-    await page.waitForSelector('text=Reactions', { timeout: 5000 });
+    // Wait for popup (look for SUPPORT or COMMENTS section)
+    await page.waitForSelector('text=/SUPPORT|COMMENTS/i', { timeout: 5000 });
 
     // Click "View all" to open comments panel
     const viewAllBtn = page.locator('button:has-text("View all")');
@@ -31,7 +31,7 @@ test.describe('NodeCommentsPanel - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    await page.waitForSelector('text=Reactions', { timeout: 5000 });
+    await page.waitForSelector('text=/SUPPORT|COMMENTS/i', { timeout: 5000 });
     await page.locator('button:has-text("View all")').click();
 
     const header = page.locator('text=Trail Chronicles');
@@ -45,7 +45,7 @@ test.describe('NodeCommentsPanel - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    await page.waitForSelector('text=Reactions', { timeout: 5000 });
+    await page.waitForSelector('text=/SUPPORT|COMMENTS/i', { timeout: 5000 });
     await page.locator('button:has-text("View all")').click();
 
     // Wait for panel
@@ -66,7 +66,7 @@ test.describe('NodeCommentsPanel - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    await page.waitForSelector('text=Reactions', { timeout: 5000 });
+    await page.waitForSelector('text=/SUPPORT|COMMENTS/i', { timeout: 5000 });
     await page.locator('button:has-text("View all")').click();
 
     // Wait for panel
@@ -84,7 +84,7 @@ test.describe('NodeCommentsPanel - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    await page.waitForSelector('text=Reactions', { timeout: 5000 });
+    await page.waitForSelector('text=/SUPPORT|COMMENTS/i', { timeout: 5000 });
     await page.locator('button:has-text("View all")').click();
 
     const panel = page.locator('text=Trail Chronicles');
@@ -104,7 +104,7 @@ test.describe('NodeCommentsPanel - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    await page.waitForSelector('text=Reactions', { timeout: 5000 });
+    await page.waitForSelector('text=/SUPPORT|COMMENTS/i', { timeout: 5000 });
     await page.locator('button:has-text("View all")').click();
 
     const panel = page.locator('text=Trail Chronicles');
@@ -133,7 +133,7 @@ test.describe('NodeCommentsPanel - Unauthenticated', () => {
     await socialBar.waitFor({ timeout: 10000 });
     await socialBar.click();
 
-    await page.waitForSelector('text=Reactions', { timeout: 5000 });
+    await page.waitForSelector('text=/SUPPORT|COMMENTS/i', { timeout: 5000 });
     await page.locator('button:has-text("View all")').click();
 
     // Wait for panel animation

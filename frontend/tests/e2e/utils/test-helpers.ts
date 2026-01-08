@@ -4,8 +4,8 @@ import { Page, expect, Locator } from '@playwright/test';
  * Test Helper Utilities for Gonado E2E Tests
  */
 
-// Test goal ID with known data
-export const TEST_GOAL_ID = 'e3dc9226-15d7-4421-903a-a4ece38dd586';
+// Test goal ID with known data (France trip goal - has nodes and is public)
+export const TEST_GOAL_ID = '2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c';
 export const GOAL_PAGE_URL = `/goals/${TEST_GOAL_ID}`;
 
 /**
@@ -64,9 +64,9 @@ export async function clickOnNode(page: Page, nodeIndex: number = 0): Promise<vo
  */
 export async function verifyPopupVisible(page: Page): Promise<Locator> {
   // Wait for popup to appear - look for the actual popup content, not the wrapper
-  // The popup has a gradient background and contains Reactions/Comments
+  // The popup has a gradient background and contains SUPPORT/COMMENTS sections
   const popup = page.locator('[class*="max-w-"][class*="flex"][class*="flex-col"]').filter({
-    has: page.locator('text=/Reactions|Comments/i')
+    has: page.locator('text=/SUPPORT|COMMENTS/i')
   }).first();
 
   await expect(popup).toBeVisible({ timeout: 5000 });
