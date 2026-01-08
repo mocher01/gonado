@@ -22,6 +22,7 @@ from app.models.follow import Follow, FollowType
 from app.models.activity import Activity, ActivityTargetType
 from app.models.conversation import Conversation
 from app.models.generation_queue import GenerationQueue
+from app.models.swap import Swap
 from app.services.ai_planner import ai_planner_service
 from app.services.gamification import gamification_service, XP_REWARDS
 from app.middleware.security import limiter
@@ -637,7 +638,11 @@ async def delete_goal(
     - All comments on nodes, updates, and the goal itself
     - All follows on this goal
     - All activities related to this goal and its nodes
-    - Goal shares, prophecies, time capsules, sacred boosts (via DB cascade)
+    - Node dependencies between nodes
+    - Swaps referencing these nodes (node references set to NULL)
+    - Resource drops on nodes (via DB cascade)
+    - Time capsules on nodes (via DB cascade)
+    - Goal shares, prophecies, sacred boosts (via DB cascade)
 
     Only the goal owner can delete their goal.
     """
@@ -777,13 +782,28 @@ async def delete_goal(
             )
         )
 
-    # Delete nodes
+    # Delete or unlink swaps that reference these nodes
+    if node_ids:
+        # Swaps where these nodes are proposer nodes - set to NULL (nullable)
+        await db.execute(
+            Swap.__table__.update()
+            .where(Swap.proposer_node_id.in_(node_ids))
+            .values(proposer_node_id=None)
+        )
+        # Swaps where these nodes are receiver nodes - set to NULL (nullable)
+        await db.execute(
+            Swap.__table__.update()
+            .where(Swap.receiver_node_id.in_(node_ids))
+            .values(receiver_node_id=None)
+        )
+
+    # Delete nodes (this will cascade to resource_drops and time_capsules via DB)
     if node_ids:
         await db.execute(
             delete(Node).where(Node.goal_id == goal_id)
         )
 
-    # Finally delete the goal (shares, prophecies, time_capsules, sacred_boosts, resource_drops cascade via DB)
+    # Finally delete the goal (shares, prophecies, sacred_boosts cascade via DB)
     await db.delete(goal)
 
 
