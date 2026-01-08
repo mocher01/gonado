@@ -37,23 +37,28 @@ I do NOT ask "What would you like me to work on next?" - I CHECK THE ISSUES.
 | Status | Count |
 |--------|-------|
 | Total Issues | 75 |
-| Closed | 60 |
-| **Open** | **15** |
+| Closed | 63 |
+| **Open** | **12** |
 
 ---
 
-## Open Issues (15 Total)
+## Open Issues (12 Total)
 
-### MVP Epics Still Open (6)
+### MVP Epics Still Open (3)
 
 | # | Title | Status | Notes |
 |---|-------|--------|-------|
-| **#8** | Backend: Real-time WebSocket System | OPEN | **No implementation yet** |
-| **#14** | Social Interactions: Comments, Likes, Follow | OPEN | Sub-issues done, epic needs closing |
-| **#15** | Discovery: Find Goals to Support | OPEN | Needs review |
-| **#16** | User Profiles: Achiever & Helper Reputation | OPEN | Needs review |
-| **#17** | Frontend: Notifications & Alerts | OPEN | **No implementation yet** |
-| **#19** | Infrastructure: Ansible Deployment Playbooks | OPEN | Partial - needs completion |
+| **#15** | Discovery: Find Goals to Support | OPEN | Basic page exists, needs filters/search |
+| **#16** | User Profiles: Achiever & Helper Reputation | OPEN | Needs profile page at /u/{username} |
+| **#19** | Infrastructure: Ansible Deployment Playbooks | OPEN | Core working, nginx/ssl roles empty |
+
+### Recently Closed MVP Issues
+
+| # | Title | Completed |
+|---|-------|-----------|
+| #8 | Backend: Real-time WebSocket System | Redis listener in lifespan |
+| #14 | Social Interactions | All sub-issues done |
+| #17 | Frontend: Notifications & Alerts | NotificationBell, /notifications page |
 
 ### Non-MVP Epics (6)
 
@@ -95,31 +100,30 @@ All sprint implementation issues are **CLOSED**:
 
 ## What's Actually Missing for MVP
 
-### 1. Real-time WebSocket System (#8)
-- No WebSocket implementation exists
-- Reactions/comments don't update in real-time
-- PRD Section 6.5 specifies required events
-
-### 2. Notifications System (#17)
-- No notification model/API fully working
-- No push notifications
-- No in-app notification center
-
-### 3. Ansible Deployment (#19)
-- Playbooks need completion/testing
-- User explicitly prefers Ansible for deployment
-
-### 4. Discovery Page (#15)
-- Basic page exists but needs:
+### 1. Discovery Page (#15) - PARTIAL
+- Basic page exists with grid/mobile views
+- Missing:
+  - Category/stage filters
+  - Search functionality
   - Trending algorithm
-  - "Struggling" filter
-  - Category browse
+  - Recommendations
 
-### 5. User Profiles (#16)
-- Basic profile exists but needs:
-  - Reputation display
-  - Helper stats
-  - Skills/badges
+### 2. User Profiles (#16) - NOT STARTED
+- Need profile page at /u/{username}
+- Need reputation display
+- Need badges system
+- Need helper/achiever stats
+
+### 3. Ansible Deployment (#19) - PARTIAL
+- Working: site.yml, deploy.yml, common/docker/app roles
+- Missing: nginx role, ssl role, vault, backups
+- Core deployment functional for dev/staging
+
+### Completed MVP Features
+
+- **#8 WebSocket** - Redis listener runs in lifespan, subscribes to user/goal/global channels
+- **#17 Notifications** - NotificationBell, NotificationDropdown, NotificationItem, /notifications page
+- **#14 Social** - Comments, reactions, follows all working
 
 ---
 
