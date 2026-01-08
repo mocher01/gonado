@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { NodeFormModal } from "@/components/quest-map/NodeFormModal";
 import { EditGoalModal } from "@/components/goals/EditGoalModal";
 import { NodeCarousel, SwipeIndicator } from "@/components/mobile";
+import { GoalPageHeader } from "@/components/goal/GoalPageHeader";
 
 // Lazy load BPMNQuestMap for better performance
 const BPMNQuestMap = dynamic(
@@ -47,6 +48,16 @@ import {
 import type { StruggleStatus } from "@/components/social";
 import type { ElementType } from "@/components/social";
 import type { Goal, Node, ChecklistItem, NodeType, MoodType } from "@/types";
+
+// Theme configuration for goal headers
+const THEME_CONFIGS: Record<string, { icon: string; pathColor: string }> = {
+  mountain: { icon: "🏔️", pathColor: "#f59e0b" },
+  ocean: { icon: "🌊", pathColor: "#06b6d4" },
+  forest: { icon: "🌲", pathColor: "#22c55e" },
+  desert: { icon: "🏜️", pathColor: "#fbbf24" },
+  space: { icon: "🚀", pathColor: "#06b6d4" },
+  city: { icon: "🏙️", pathColor: "#3b82f6" },
+};
 
 // Social data types
 interface Follower {
@@ -2363,117 +2374,38 @@ export default function GoalDetailPage() {
             nodeSocialData={nodeSocialData}
           />
 
-          {/* Top bar overlays */}
-          <div className="absolute top-4 left-4 z-30">
-            <Link
-              href={user ? "/dashboard" : "/discover"}
-              className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
-            >
-              <span>←</span>
-              <span>{user ? "Dashboard" : "Discover"}</span>
-            </Link>
-          </div>
-
-          {/* Top right: Auth header + Visibility toggle + Share button */}
-          <div className="absolute top-4 right-4 z-30 flex items-center gap-3">
-            {/* Auth header */}
-            <AuthHeader user={user} isLoading={authLoading} onLogout={logout} goalId={goalId} />
-
-            {/* Visibility toggle (owner only) */}
-            {isOwner && (
-              <button
-                onClick={handleToggleVisibility}
-                className={`flex items-center gap-2 px-4 py-2 backdrop-blur-sm rounded-full transition-colors ${
-                  isPublic
-                    ? "bg-emerald-500/30 text-emerald-300 hover:bg-emerald-500/40"
-                    : "bg-slate-600/50 text-slate-300 hover:bg-slate-600/70"
-                }`}
-                title={isPublic ? "Click to make private" : "Click to make public"}
-              >
-                {isPublic ? (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Public</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    <span>Private</span>
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* Mood Selector (owner only, Issue #67) */}
-            {isOwner && (
-              <MoodSelector
-                currentMood={goal.current_mood}
-                onMoodChange={handleMoodChange}
-                isOwner={true}
-              />
-            )}
-
-            {/* Mood indicator for visitors (when owner has set a mood) */}
-            {!isOwner && goal.current_mood && (
-              <MoodSelector
-                currentMood={goal.current_mood}
-                onMoodChange={() => {}}
-                isOwner={false}
-              />
-            )}
-
-            {/* Struggle Badge (Issue #68) - shows when goal needs support */}
-            {isPublic && struggleStatus?.is_struggling && (
-              <StruggleBadge
-                status={struggleStatus}
-                isOwner={!!isOwner}
-                onDismiss={isOwner ? handleDismissStruggle : undefined}
-              />
-            )}
-
-            {/* Add Node button (owner only) */}
-            {isOwner && (
-              <button
-                onClick={handleAddNode}
-                data-testid="add-node-btn"
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500/30 backdrop-blur-sm rounded-full text-emerald-300 hover:bg-emerald-500/40 transition-colors"
-                title="Add new step"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span>Add Step</span>
-              </button>
-            )}
-
-            {/* Edit Goal button (owner only) */}
-            {isOwner && (
-              <button
-                onClick={() => setShowEditGoalModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
-                title="Edit goal settings"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span>Edit</span>
-              </button>
-            )}
-
-            {/* Share button (public goals only) */}
-            {isPublic && (
+          {/* Unified Goal Page Header */}
+          <GoalPageHeader
+            goalTitle={goal.title}
+            themeIcon={(THEME_CONFIGS[goal.world_theme || "mountain"] || THEME_CONFIGS.mountain).icon}
+            themeColor={(THEME_CONFIGS[goal.world_theme || "mountain"] || THEME_CONFIGS.mountain).pathColor}
+            completedCount={nodes.filter(n => n.status === "completed").length}
+            totalCount={nodes.length}
+            progress={nodes.length > 0 ? (nodes.filter(n => n.status === "completed").length / nodes.length) * 100 : 0}
+            backHref={user ? "/dashboard" : "/discover"}
+            backLabel={user ? "Dashboard" : "Discover"}
+            isOwner={!!isOwner}
+            isPublic={isPublic}
+            currentMood={goal.current_mood}
+            isStruggling={!!(isPublic && struggleStatus?.is_struggling)}
+            authSlot={<AuthHeader user={user} isLoading={authLoading} onLogout={logout} goalId={goalId} />}
+            onAddNode={handleAddNode}
+            onEditGoal={() => setShowEditGoalModal(true)}
+            onToggleVisibility={handleToggleVisibility}
+            onMoodChange={isOwner ? handleMoodChange : undefined}
+            struggleSlot={
+              <StruggleBadge status={struggleStatus!} isOwner={!!isOwner} onDismiss={isOwner ? handleDismissStruggle : undefined} />
+            }
+            shareSlot={
               <div className="relative">
                 <button
                   onClick={() => setShowShareMenu(!showShareMenu)}
-                  className="flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
+                  className="flex items-center justify-center w-9 h-9 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-lg text-white/70 hover:text-white transition-all duration-200"
+                  title="Share goal"
                 >
-                  <span>📤</span>
-                  <span>Share</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
                 </button>
                 <AnimatePresence>
                   {showShareMenu && (
@@ -2481,17 +2413,17 @@ export default function GoalDetailPage() {
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="absolute right-0 top-full mt-2 bg-slate-800/95 backdrop-blur-sm border border-white/10 rounded-xl p-2 min-w-[200px]"
+                      className="absolute right-0 top-full mt-2 bg-slate-800/95 backdrop-blur-sm border border-white/10 rounded-xl p-2 min-w-[180px] z-50"
                     >
-                      <button onClick={handleCopyLink} className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left">
+                      <button onClick={handleCopyLink} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors text-left text-sm">
                         <span>{copied ? "✓" : "🔗"}</span>
                         <span className="text-white">{copied ? "Copied!" : "Copy Link"}</span>
                       </button>
-                      <button onClick={() => handleShare("twitter")} className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left">
+                      <button onClick={() => handleShare("twitter")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors text-left text-sm">
                         <span>🐦</span>
                         <span className="text-white">Twitter</span>
                       </button>
-                      <button onClick={() => handleShare("facebook")} className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors text-left">
+                      <button onClick={() => handleShare("facebook")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors text-left text-sm">
                         <span>📘</span>
                         <span className="text-white">Facebook</span>
                       </button>
@@ -2499,8 +2431,8 @@ export default function GoalDetailPage() {
                   )}
                 </AnimatePresence>
               </div>
-            )}
-          </div>
+            }
+          />
 
           {/* COMMUNITY PULSE - Visible social indicators for public goals */}
           {isPublic && (

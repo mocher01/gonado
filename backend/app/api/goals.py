@@ -591,7 +591,8 @@ async def update_goal_mood(
     goal.current_mood = mood_data.mood
     goal.mood_updated_at = datetime.utcnow()
 
-    await db.flush()
+    await db.commit()
+    await db.refresh(goal)
     return goal
 
 
@@ -616,7 +617,8 @@ async def clear_goal_mood(
     goal.current_mood = None
     goal.mood_updated_at = None
 
-    await db.flush()
+    await db.commit()
+    await db.refresh(goal)
     return goal
 
 
