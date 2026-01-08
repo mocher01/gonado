@@ -5,14 +5,14 @@
 // Known test goal with data
 export const TEST_GOALS = {
   franceTripGoal: {
-    id: 'e3dc9226-15d7-4421-903a-a4ece38dd586',
+    id: '2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c',
     title: 'Epic Solo Road Trip Through France',
-    url: '/goals/e3dc9226-15d7-4421-903a-a4ece38dd586',
+    url: '/goals/2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c',
   },
   salsaGoal: {
-    id: '6fba8b84-2e3c-4723-b975-060c7894234b',
+    id: 'fe093fe2-270b-4880-8785-8ec658e24576',
     title: 'Salsa Dance Floor Confidence',
-    url: '/goals/6fba8b84-2e3c-4723-b975-060c7894234b',
+    url: '/goals/fe093fe2-270b-4880-8785-8ec658e24576',
   },
 };
 
