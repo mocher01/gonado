@@ -408,9 +408,29 @@ async def discover_goals(
     result = await db.execute(query)
     rows = result.all()
 
-    # Build enriched response with owner info
+    # Build enriched response with owner info and progress
     enriched_goals = []
     for goal, user in rows:
+        # Calculate progress: (completed_nodes / total_nodes) * 100
+        total_nodes_result = await db.execute(
+            select(func.count(Node.id)).where(Node.goal_id == goal.id)
+        )
+        total_nodes = total_nodes_result.scalar() or 0
+
+        completed_nodes_result = await db.execute(
+            select(func.count(Node.id)).where(
+                Node.goal_id == goal.id,
+                Node.status == "completed"
+            )
+        )
+        completed_nodes = completed_nodes_result.scalar() or 0
+
+        # Calculate progress percentage (0-100)
+        if total_nodes > 0:
+            progress = int((completed_nodes * 100.0) / total_nodes)
+        else:
+            progress = 0
+
         enriched_goal = GoalDiscoveryResponse(
             id=goal.id,
             user_id=goal.user_id,
@@ -434,7 +454,8 @@ async def discover_goals(
                 username=user.username,
                 display_name=user.display_name,
                 avatar_url=user.avatar_url
-            )
+            ),
+            progress=progress
         )
         enriched_goals.append(enriched_goal)
 

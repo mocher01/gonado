@@ -100,6 +100,8 @@ class GoalDiscoveryResponse(BaseModel):
     hard_node_threshold_days: Optional[int] = 14
     # Owner info
     owner: GoalOwnerInfo
+    # Progress percentage (0-100)
+    progress: int = 0
 
     class Config:
         from_attributes = True

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 /**
@@ -53,14 +53,8 @@ export function FilterBar({
   const [isExpanded, setIsExpanded] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const hasActiveFilters = category !== "" || needsHelp || sort !== "newest";
-  const isDesktop = isMounted && window.innerWidth >= 768;
 
   return (
     <div className="mb-6">
@@ -83,162 +77,150 @@ export function FilterBar({
         </button>
       </div>
 
-      {/* Filter controls */}
-      <AnimatePresence>
-        {(isExpanded || isDesktop) && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-              {/* Left side - Filters */}
-              <div className="flex flex-col sm:flex-row gap-3 flex-1">
-                {/* Category Dropdown */}
-                <div className="relative flex-1 md:flex-none md:w-48">
-                  <button
-                    onClick={() => {
-                      setCategoryOpen(!categoryOpen);
-                      setSortOpen(false);
-                    }}
-                    className="w-full px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-between text-white border border-white/10"
-                  >
-                    <span className="flex items-center gap-2 truncate">
-                      <span className="text-lg">
-                        {CATEGORIES.find(c => c.value === category)?.icon || "*"}
-                      </span>
-                      <span className="text-sm">
-                        {CATEGORIES.find(c => c.value === category)?.label || "All Categories"}
-                      </span>
-                    </span>
-                    <ChevronIcon className={`w-4 h-4 transition-transform ${categoryOpen ? "rotate-180" : ""}`} />
-                  </button>
+      {/* Filter controls - Desktop: always visible, Mobile: controlled by isExpanded */}
+      <div className={`md:block ${isExpanded ? 'block' : 'hidden'}`}>
+        <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+          {/* Left side - Filters */}
+          <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            {/* Category Dropdown */}
+            <div className="relative flex-1 md:flex-none md:w-48">
+              <button
+                onClick={() => {
+                  setCategoryOpen(!categoryOpen);
+                  setSortOpen(false);
+                }}
+                className="w-full px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-between text-white border border-white/10"
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <span className="text-lg">
+                    {CATEGORIES.find(c => c.value === category)?.icon || "*"}
+                  </span>
+                  <span className="text-sm">
+                    {CATEGORIES.find(c => c.value === category)?.label || "All Categories"}
+                  </span>
+                </span>
+                <ChevronIcon className={`w-4 h-4 transition-transform ${categoryOpen ? "rotate-180" : ""}`} />
+              </button>
 
-                  <AnimatePresence>
-                    {categoryOpen && (
-                      <>
-                        {/* Backdrop */}
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={() => setCategoryOpen(false)}
-                        />
+              <AnimatePresence>
+                {categoryOpen && (
+                  <>
+                    {/* Backdrop */}
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setCategoryOpen(false)}
+                    />
 
-                        {/* Dropdown */}
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute top-full mt-2 left-0 right-0 bg-slate-800 border border-white/10 rounded-lg shadow-xl overflow-hidden z-20"
+                    {/* Dropdown */}
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute top-full mt-2 left-0 right-0 bg-slate-800 border border-white/10 rounded-lg shadow-xl overflow-hidden z-20"
+                    >
+                      {CATEGORIES.map((cat) => (
+                        <button
+                          key={cat.value}
+                          onClick={() => {
+                            onCategoryChange(cat.value);
+                            setCategoryOpen(false);
+                          }}
+                          className={`w-full px-4 py-2.5 flex items-center gap-2 hover:bg-white/5 transition-colors text-left ${
+                            category === cat.value ? "bg-primary-500/10 text-primary-400" : "text-white"
+                          }`}
                         >
-                          {CATEGORIES.map((cat) => (
-                            <button
-                              key={cat.value}
-                              onClick={() => {
-                                onCategoryChange(cat.value);
-                                setCategoryOpen(false);
-                              }}
-                              className={`w-full px-4 py-2.5 flex items-center gap-2 hover:bg-white/5 transition-colors text-left ${
-                                category === cat.value ? "bg-primary-500/10 text-primary-400" : "text-white"
-                              }`}
-                            >
-                              <span className="text-lg">{cat.icon || "*"}</span>
-                              <span className="text-sm">{cat.label}</span>
-                            </button>
-                          ))}
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Sort Dropdown */}
-                <div className="relative flex-1 md:flex-none md:w-44">
-                  <button
-                    onClick={() => {
-                      setSortOpen(!sortOpen);
-                      setCategoryOpen(false);
-                    }}
-                    className="w-full px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-between text-white border border-white/10"
-                  >
-                    <span className="flex items-center gap-2 truncate">
-                      <SortIcon className="w-4 h-4" />
-                      <span className="text-sm">
-                        {SORT_OPTIONS.find(s => s.value === sort)?.label || "Newest"}
-                      </span>
-                    </span>
-                    <ChevronIcon className={`w-4 h-4 transition-transform ${sortOpen ? "rotate-180" : ""}`} />
-                  </button>
-
-                  <AnimatePresence>
-                    {sortOpen && (
-                      <>
-                        {/* Backdrop */}
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={() => setSortOpen(false)}
-                        />
-
-                        {/* Dropdown */}
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute top-full mt-2 left-0 right-0 bg-slate-800 border border-white/10 rounded-lg shadow-xl overflow-hidden z-20"
-                        >
-                          {SORT_OPTIONS.map((option) => (
-                            <button
-                              key={option.value}
-                              onClick={() => {
-                                onSortChange(option.value as typeof sort);
-                                setSortOpen(false);
-                              }}
-                              className={`w-full px-4 py-2.5 flex items-center gap-2 hover:bg-white/5 transition-colors text-left ${
-                                sort === option.value ? "bg-primary-500/10 text-primary-400" : "text-white"
-                              }`}
-                            >
-                              <span className="text-sm">{option.label}</span>
-                            </button>
-                          ))}
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Needs Help Toggle */}
-                <button
-                  onClick={() => onNeedsHelpChange(!needsHelp)}
-                  className={`px-4 py-2.5 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap border ${
-                    needsHelp
-                      ? "bg-accent-500/20 text-accent-400 border-accent-500/50"
-                      : "bg-white/5 hover:bg-white/10 text-white border-white/10"
-                  }`}
-                >
-                  <HelpIcon className="w-4 h-4" />
-                  <span className="text-sm font-medium">Needs Help</span>
-                </button>
-              </div>
-
-              {/* Right side - Clear button */}
-              {hasActiveFilters && onClearAll && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  onClick={onClearAll}
-                  className="px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-white text-sm font-medium flex items-center gap-2 justify-center"
-                >
-                  <XIcon className="w-4 h-4" />
-                  <span>Clear All</span>
-                </motion.button>
-              )}
+                          <span className="text-lg">{cat.icon || "*"}</span>
+                          <span className="text-sm">{cat.label}</span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            {/* Sort Dropdown */}
+            <div className="relative flex-1 md:flex-none md:w-44">
+              <button
+                onClick={() => {
+                  setSortOpen(!sortOpen);
+                  setCategoryOpen(false);
+                }}
+                className="w-full px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-between text-white border border-white/10"
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <SortIcon className="w-4 h-4" />
+                  <span className="text-sm">
+                    {SORT_OPTIONS.find(s => s.value === sort)?.label || "Newest"}
+                  </span>
+                </span>
+                <ChevronIcon className={`w-4 h-4 transition-transform ${sortOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              <AnimatePresence>
+                {sortOpen && (
+                  <>
+                    {/* Backdrop */}
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setSortOpen(false)}
+                    />
+
+                    {/* Dropdown */}
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute top-full mt-2 left-0 right-0 bg-slate-800 border border-white/10 rounded-lg shadow-xl overflow-hidden z-20"
+                    >
+                      {SORT_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            onSortChange(option.value as typeof sort);
+                            setSortOpen(false);
+                          }}
+                          className={`w-full px-4 py-2.5 flex items-center gap-2 hover:bg-white/5 transition-colors text-left ${
+                            sort === option.value ? "bg-primary-500/10 text-primary-400" : "text-white"
+                          }`}
+                        >
+                          <span className="text-sm">{option.label}</span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Needs Help Toggle */}
+            <button
+              onClick={() => onNeedsHelpChange(!needsHelp)}
+              className={`px-4 py-2.5 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap border ${
+                needsHelp
+                  ? "bg-accent-500/20 text-accent-400 border-accent-500/50"
+                  : "bg-white/5 hover:bg-white/10 text-white border-white/10"
+              }`}
+            >
+              <HelpIcon className="w-4 h-4" />
+              <span className="text-sm font-medium">Needs Help</span>
+            </button>
+          </div>
+
+          {/* Right side - Clear button */}
+          {hasActiveFilters && onClearAll && (
+            <button
+              onClick={onClearAll}
+              className="px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-white text-sm font-medium flex items-center gap-2 justify-center"
+            >
+              <XIcon className="w-4 h-4" />
+              <span>Clear All</span>
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -32,9 +32,23 @@ export const TEST_NODES = {
 
 // Test user credentials (for authenticated tests)
 export const TEST_USERS = {
+  admin: {
+    username: 'admin',
+    email: 'admin@gonado.app',
+    password: 'admin123',
+    profileUrl: '/u/admin',
+  },
   testUser: {
+    username: 'testuser',
     email: 'testuser@example.com',
     password: 'test123456',
+    profileUrl: '/u/testuser',
+  },
+  e2eTest: {
+    username: 'e2etest',
+    email: 'e2etest@example.com',
+    password: 'TestE2E123',
+    profileUrl: '/u/e2etest',
   },
 };
 
@@ -59,3 +73,22 @@ export const UI_ELEMENTS = {
   },
   reactions: ['fire', 'water', 'nature', 'lightning', 'magic'],
 };
+
+// Discovery page categories
+export const DISCOVER_CATEGORIES = [
+  { value: '', label: 'All Categories' },
+  { value: 'health', label: 'Health' },
+  { value: 'career', label: 'Career' },
+  { value: 'education', label: 'Education' },
+  { value: 'finance', label: 'Finance' },
+  { value: 'relationships', label: 'Relationships' },
+  { value: 'creativity', label: 'Creativity' },
+  { value: 'personal', label: 'Personal' },
+];
+
+// Discovery page sort options
+export const DISCOVER_SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'trending', label: 'Trending' },
+  { value: 'almost_done', label: 'Almost Done' },
+];
