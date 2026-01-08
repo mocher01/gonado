@@ -1859,6 +1859,10 @@ export default function GoalDetailPage() {
   const handleNodeReaction = async (reactionType: string) => {
     if (!user || !selectedNode) return;
     try {
+      // Convert hyphenated reaction type to underscore for state key
+      // API uses hyphens (light-path), but response uses underscores (light_path)
+      const stateKey = reactionType.replace(/-/g, '_');
+
       if (selectedNodeUserReaction === reactionType) {
         // Remove reaction
         await api.removeReaction("node", selectedNode.id);
@@ -1866,7 +1870,7 @@ export default function GoalDetailPage() {
         setSelectedNodeSummary((prev: any) => {
           if (!prev) return prev;
           const newReactions = { ...prev.reactions };
-          newReactions[reactionType] = Math.max(0, newReactions[reactionType] - 1);
+          newReactions[stateKey] = Math.max(0, newReactions[stateKey] - 1);
           return {
             ...prev,
             reactions: newReactions,
@@ -1882,10 +1886,11 @@ export default function GoalDetailPage() {
           const newReactions = { ...prev.reactions };
           // Decrement previous reaction if exists
           if (selectedNodeUserReaction) {
-            newReactions[selectedNodeUserReaction] = Math.max(0, newReactions[selectedNodeUserReaction] - 1);
+            const prevStateKey = selectedNodeUserReaction.replace(/-/g, '_');
+            newReactions[prevStateKey] = Math.max(0, newReactions[prevStateKey] - 1);
           }
           // Increment new reaction
-          newReactions[reactionType] = (newReactions[reactionType] || 0) + 1;
+          newReactions[stateKey] = (newReactions[stateKey] || 0) + 1;
           return {
             ...prev,
             reactions: newReactions,
