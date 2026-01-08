@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { XPDisplay } from "@/components/gamification/XPDisplay";
 import { StreakCounter } from "@/components/gamification/StreakCounter";
+import { NotificationBell, NotificationProvider } from "@/components/notifications";
 import type { Goal } from "@/types";
 
 export default function DashboardPage() {
@@ -75,7 +76,8 @@ export default function DashboardPage() {
   const completedGoals = goals.filter((g) => g.status === "completed");
 
   return (
-    <div className="min-h-screen p-8">
+    <NotificationProvider>
+      <div className="min-h-screen p-8">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}
@@ -92,6 +94,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-4">
           <StreakCounter days={user.streak_days} />
+          <NotificationBell />
           <Link
             href="/discover"
             className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-colors flex items-center gap-2"
@@ -269,5 +272,6 @@ export default function DashboardPage() {
         )}
       </motion.section>
     </div>
+    </NotificationProvider>
   );
 }

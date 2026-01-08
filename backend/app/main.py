@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from uuid import UUID
+import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
@@ -11,6 +12,13 @@ from app.middleware.security import (
     InputValidationMiddleware,
 )
 import sentry_sdk
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 # Initialize Sentry if DSN is provided
@@ -25,8 +33,36 @@ if settings.SENTRY_DSN:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    import asyncio
+
+    logger.info("Starting application lifespan...")
+
+    # Start Redis listener as a background task
+    logger.info("Starting Redis listener background task...")
+    redis_listener_task = asyncio.create_task(connection_manager.start_redis_listener())
+
+    logger.info("Application startup complete")
+
     yield
+
     # Shutdown
+    logger.info("Shutting down application...")
+
+    # Cancel the Redis listener task
+    logger.info("Stopping Redis listener...")
+    redis_listener_task.cancel()
+    try:
+        await redis_listener_task
+    except asyncio.CancelledError:
+        logger.info("Redis listener stopped")
+
+    # Close Redis connection
+    if connection_manager.redis_client:
+        logger.info("Closing Redis connection...")
+        await connection_manager.redis_client.close()
+        logger.info("Redis connection closed")
+
+    logger.info("Application shutdown complete")
 
 
 app = FastAPI(
