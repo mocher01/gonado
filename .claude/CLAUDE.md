@@ -21,17 +21,25 @@ I do NOT ask "What would you like me to work on next?" - I CHECK THE ISSUES.
 | 3 | Node CRUD, Difficulty, Sequential/Parallel | DONE |
 | 4 | Coaching Reactions, Trail Markers | DONE |
 | 5 | Fellow Travelers, Mood Indicators | DONE |
-| 6 | Struggle Detection, Mobile Nav, PWA | IN PROGRESS |
-| 7 | Swap, Time Capsules | PENDING |
-| 8 | Performance, Security, Beta Prep | PENDING |
+| 6 | Struggle Detection, Mobile Nav, PWA | DONE |
+| 7 | Swap, Time Capsules | DONE |
+| 8 | Performance, Security, Beta Prep | DONE |
 
-## Current Sprint 6 Issues
+## Remaining Open Issues (Enhancements)
 
-| Issue | Title | Status |
-|-------|-------|--------|
-| #68 | Struggle Detection System | CLOSED |
-| #69 | TikTok-Style Mobile Navigation | CLOSED |
-| #70 | PWA Setup (Service Worker, Manifest, Install) | OPEN |
+| Issue | Title | Priority |
+|-------|-------|----------|
+| #39 | Real-time updates for reactions/social data | P2 |
+| #34 | Discover page needs complete redesign | P2 |
+| #33 | Landing page hero too large | P2 |
+
+## Test Users
+
+| User | Email | Password |
+|------|-------|----------|
+| Admin | admin@gonado.app | admin123 |
+| Test User | testuser@example.com | test123456 |
+| E2E Test | e2etest@example.com | TestE2E123 |
 
 ## My Workflow
 
