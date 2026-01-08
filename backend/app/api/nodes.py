@@ -245,7 +245,7 @@ async def update_node_position(
     node.position_x = position_data.position_x
     node.position_y = position_data.position_y
 
-    await db.flush()
+    await db.commit()
     return node
 
 

@@ -305,11 +305,17 @@ function BPMNQuestMapInner({
         parallelGroup.forEach((parallelNode, pIndex) => {
           const yPos = startY + pIndex * (NODE_HEIGHT + VERTICAL_GAP);
 
+          // Use saved position if available, otherwise use calculated position
+          const position = (parallelNode.position_x !== undefined && parallelNode.position_x !== null &&
+                           parallelNode.position_y !== undefined && parallelNode.position_y !== null)
+            ? { x: parallelNode.position_x, y: parallelNode.position_y }
+            : { x: xPosition, y: yPos };
+
           nodes.push({
             id: parallelNode.id,
             type:
               parallelNode.node_type === "milestone" ? "milestone" : "task",
-            position: { x: xPosition, y: yPos },
+            position,
             data: {
               nodeId: parallelNode.id,
               title: parallelNode.title,
@@ -408,10 +414,16 @@ function BPMNQuestMapInner({
         // Most common case - no gateways needed
         const yPos = 250;
 
+        // Use saved position if available, otherwise use calculated position
+        const position = (node.position_x !== undefined && node.position_x !== null &&
+                         node.position_y !== undefined && node.position_y !== null)
+          ? { x: node.position_x, y: node.position_y }
+          : { x: xPosition, y: yPos };
+
         nodes.push({
           id: node.id,
           type: node.node_type === "milestone" ? "milestone" : "task",
-          position: { x: xPosition, y: yPos },
+          position,
           data: {
             nodeId: node.id,
             title: node.title,
