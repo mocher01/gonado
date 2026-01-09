@@ -29,6 +29,14 @@ interface NodeSocialSummary {
   resources_count: number;
 }
 
+interface NodeReactionCounts {
+  encourage: number;
+  celebrate: number;
+  light_path: number;
+  send_strength: number;
+  mark_struggle: number;
+}
+
 interface TaskNodeData {
   nodeId: string;
   title: string;
@@ -49,6 +57,9 @@ interface TaskNodeData {
   onEdit?: () => void;
   onSocialClick?: (screenPosition: { x: number; y: number }) => void;
   socialData?: NodeSocialSummary;
+  reactionCounts?: NodeReactionCounts;
+  userReaction?: string | null;
+  onReaction?: (reactionType: string) => void;
   themeColors: {
     nodeActive: string;
     nodeCompleted: string;
@@ -100,7 +111,7 @@ function parseDescription(desc: string | null): string[] {
 }
 
 function TaskNodeComponent({ data, selected }: TaskNodeProps) {
-  const { title, description, status, order, onComplete, onChecklistToggle, onEdit, onSocialClick, socialData, themeColors, extra_data } = data;
+  const { title, description, status, order, onComplete, onChecklistToggle, onEdit, onSocialClick, socialData, reactionCounts, userReaction, onReaction, themeColors, extra_data } = data;
 
   const isCompleted = status === "completed";
   const isActive = status === "active";
@@ -443,6 +454,131 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
             }`}>
               {description}
             </p>
+          )}
+
+          {/* Reactions Bar - Directly on node (Issue #49) */}
+          {reactionCounts && onReaction && (
+            <div className="mt-4 pt-3 border-t border-white/5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Encourage */}
+                <motion.button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReaction("encourage");
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-all ${
+                    userReaction === "encourage"
+                      ? "bg-emerald-500/20 border border-emerald-500/40"
+                      : "bg-white/5 hover:bg-white/10 border border-transparent"
+                  }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span className="text-base">👊</span>
+                  <span className={`text-xs font-medium ${
+                    userReaction === "encourage" ? "text-emerald-400" : "text-slate-400"
+                  }`}>
+                    {reactionCounts.encourage || 0}
+                  </span>
+                </motion.button>
+
+                {/* Celebrate */}
+                <motion.button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReaction("celebrate");
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-all ${
+                    userReaction === "celebrate"
+                      ? "bg-amber-500/20 border border-amber-500/40"
+                      : "bg-white/5 hover:bg-white/10 border border-transparent"
+                  }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span className="text-base">🎉</span>
+                  <span className={`text-xs font-medium ${
+                    userReaction === "celebrate" ? "text-amber-400" : "text-slate-400"
+                  }`}>
+                    {reactionCounts.celebrate || 0}
+                  </span>
+                </motion.button>
+
+                {/* Light Path */}
+                <motion.button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReaction("light-path");
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-all ${
+                    userReaction === "light-path"
+                      ? "bg-blue-500/20 border border-blue-500/40"
+                      : "bg-white/5 hover:bg-white/10 border border-transparent"
+                  }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span className="text-base">🔦</span>
+                  <span className={`text-xs font-medium ${
+                    userReaction === "light-path" ? "text-blue-400" : "text-slate-400"
+                  }`}>
+                    {reactionCounts.light_path || 0}
+                  </span>
+                </motion.button>
+
+                {/* Send Strength */}
+                <motion.button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReaction("send-strength");
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-all ${
+                    userReaction === "send-strength"
+                      ? "bg-red-500/20 border border-red-500/40"
+                      : "bg-white/5 hover:bg-white/10 border border-transparent"
+                  }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span className="text-base">💪</span>
+                  <span className={`text-xs font-medium ${
+                    userReaction === "send-strength" ? "text-red-400" : "text-slate-400"
+                  }`}>
+                    {reactionCounts.send_strength || 0}
+                  </span>
+                </motion.button>
+
+                {/* Mark Struggle */}
+                <motion.button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReaction("mark-struggle");
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-all ${
+                    userReaction === "mark-struggle"
+                      ? "bg-purple-500/20 border border-purple-500/40"
+                      : "bg-white/5 hover:bg-white/10 border border-transparent"
+                  }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span className="text-base">🚩</span>
+                  <span className={`text-xs font-medium ${
+                    userReaction === "mark-struggle" ? "text-purple-400" : "text-slate-400"
+                  }`}>
+                    {reactionCounts.mark_struggle || 0}
+                  </span>
+                </motion.button>
+              </div>
+            </div>
+          )}
+
+          {/* Comments Indicator */}
+          {socialData && socialData.comments_count > 0 && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-cyan-400">
+              <span>💬</span>
+              <span>{socialData.comments_count} {socialData.comments_count === 1 ? 'comment' : 'comments'}</span>
+            </div>
           )}
 
           {/* Complete button - ALWAYS visible for active nodes */}

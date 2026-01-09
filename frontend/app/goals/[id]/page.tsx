@@ -1309,6 +1309,12 @@ export default function GoalDetailPage() {
   const [selectedNodeSummary, setSelectedNodeSummary] = useState<any>(null);
   const [selectedNodeUserReaction, setSelectedNodeUserReaction] = useState<string | null>(null);
 
+  // Node reaction data for direct-on-node reactions (Issue #49)
+  const [nodeReactionData, setNodeReactionData] = useState<Record<string, {
+    reactionCounts: { encourage: number; celebrate: number; light_path: number; send_strength: number; mark_struggle: number };
+    userReaction: string | null;
+  }>>({});
+
   // Comment modal state
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [commentModalLoading, setCommentModalLoading] = useState(false);
@@ -1390,6 +1396,43 @@ export default function GoalDetailPage() {
     }
   };
 
+  // Load node reactions for all nodes (Issue #49)
+  const loadNodeReactions = useCallback(async (nodeIds: string[]) => {
+    if (!nodeIds.length || !user) return;
+
+    try {
+      // Fetch reaction data for each node
+      const reactionPromises = nodeIds.map(async (nodeId) => {
+        try {
+          const summary = await api.getNodeSocialSummary(nodeId);
+          return {
+            nodeId,
+            reactionCounts: summary.reactions || { encourage: 0, celebrate: 0, light_path: 0, send_strength: 0, mark_struggle: 0 },
+            userReaction: summary.user_reaction || null,
+          };
+        } catch {
+          return {
+            nodeId,
+            reactionCounts: { encourage: 0, celebrate: 0, light_path: 0, send_strength: 0, mark_struggle: 0 },
+            userReaction: null,
+          };
+        }
+      });
+
+      const results = await Promise.all(reactionPromises);
+      const reactionMap: Record<string, any> = {};
+      results.forEach((result) => {
+        reactionMap[result.nodeId] = {
+          reactionCounts: result.reactionCounts,
+          userReaction: result.userReaction,
+        };
+      });
+      setNodeReactionData(reactionMap);
+    } catch (error) {
+      console.error("Failed to load node reactions:", error);
+    }
+  }, [user]);
+
   const loadSocialData = useCallback(async () => {
     try {
       const [
@@ -1414,6 +1457,11 @@ export default function GoalDetailPage() {
 
       // Set node social data for the quest map
       setNodeSocialData(nodesSocialData.nodes || {});
+
+      // Load node reactions if user is logged in
+      if (user && nodes.length > 0) {
+        loadNodeReactions(nodes.map(n => n.id));
+      }
 
       setFollowers(
         (followersData.followers || []).map((f: any) => ({
@@ -1532,7 +1580,7 @@ export default function GoalDetailPage() {
     } catch (err) {
       console.error("Failed to load social data:", err);
     }
-  }, [goalId, user]);
+  }, [goalId, user, nodes, loadNodeReactions]);
 
   // Goal management handlers
   const handleGeneratePlan = async () => {
@@ -1848,6 +1896,73 @@ export default function GoalDetailPage() {
         resources_count: 0,
         top_comments: [],
       });
+    }
+  };
+
+  // Direct-on-node reaction handler (Issue #49 - NEW UX)
+  const handleDirectNodeReaction = async (nodeId: string, reactionType: string) => {
+    if (!user) {
+      toast.error("Please log in to react");
+      return;
+    }
+
+    const stateKey = reactionType.replace(/-/g, '_') as keyof { encourage: number; celebrate: number; light_path: number; send_strength: number; mark_struggle: number };
+    const currentData = nodeReactionData[nodeId];
+    const currentUserReaction = currentData?.userReaction;
+
+    // Optimistic update
+    setNodeReactionData((prev) => {
+      const current = prev[nodeId] || {
+        reactionCounts: { encourage: 0, celebrate: 0, light_path: 0, send_strength: 0, mark_struggle: 0 },
+        userReaction: null,
+      };
+      const newCounts = { ...current.reactionCounts };
+
+      if (currentUserReaction === reactionType) {
+        // Remove reaction
+        newCounts[stateKey] = Math.max(0, newCounts[stateKey] - 1);
+        return {
+          ...prev,
+          [nodeId]: {
+            reactionCounts: newCounts,
+            userReaction: null,
+          },
+        };
+      } else {
+        // Add or change reaction
+        if (currentUserReaction) {
+          const prevKey = currentUserReaction.replace(/-/g, '_') as keyof typeof newCounts;
+          newCounts[prevKey] = Math.max(0, newCounts[prevKey] - 1);
+        }
+        newCounts[stateKey] = (newCounts[stateKey] || 0) + 1;
+        return {
+          ...prev,
+          [nodeId]: {
+            reactionCounts: newCounts,
+            userReaction: reactionType,
+          },
+        };
+      }
+    });
+
+    // Call API
+    try {
+      if (currentUserReaction === reactionType) {
+        await api.removeReaction("node", nodeId);
+      } else {
+        await api.addReaction("node", nodeId, reactionType);
+      }
+    } catch (err) {
+      console.error("Failed to toggle node reaction:", err);
+      // Revert on error
+      setNodeReactionData((prev) => ({
+        ...prev,
+        [nodeId]: currentData || {
+          reactionCounts: { encourage: 0, celebrate: 0, light_path: 0, send_strength: 0, mark_struggle: 0 },
+          userReaction: null,
+        },
+      }));
+      toast.error("Failed to update reaction");
     }
   };
 
@@ -2381,6 +2496,8 @@ export default function GoalDetailPage() {
             onNodeEdit={isOwner ? handleNodeEdit : undefined}
             onNodeSocialClick={isPublic ? handleNodeClick : undefined}
             nodeSocialData={nodeSocialData}
+            nodeReactionData={nodeReactionData}
+            onNodeReaction={user ? handleDirectNodeReaction : undefined}
           />
 
           {/* Unified Goal Page Header */}

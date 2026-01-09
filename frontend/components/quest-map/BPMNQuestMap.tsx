@@ -49,6 +49,19 @@ interface NodeSocialSummary {
   resources_count: number;
 }
 
+interface NodeReactionCounts {
+  encourage: number;
+  celebrate: number;
+  light_path: number;
+  send_strength: number;
+  mark_struggle: number;
+}
+
+interface NodeReactionData {
+  reactionCounts: NodeReactionCounts;
+  userReaction: string | null;
+}
+
 interface BPMNQuestMapProps {
   nodes: Node[];
   worldTheme: string;
@@ -61,6 +74,8 @@ interface BPMNQuestMapProps {
   onNodePositionChange?: (nodeId: string, x: number, y: number) => void;
   onNodeEdit?: (nodeId: string) => void;
   nodeSocialData?: Record<string, NodeSocialSummary>;
+  nodeReactionData?: Record<string, NodeReactionData>;
+  onNodeReaction?: (nodeId: string, reactionType: string) => void;
 }
 
 const THEME_CONFIGS: Record<
@@ -169,6 +184,8 @@ function BPMNQuestMapInner({
   onNodeEdit,
   onNodeSocialClick,
   nodeSocialData,
+  nodeReactionData,
+  onNodeReaction,
   theme,
 }: BPMNQuestMapProps & { theme: typeof THEME_CONFIGS.mountain }) {
   // Import React Flow hooks dynamically
@@ -343,6 +360,11 @@ function BPMNQuestMapInner({
                 ? (screenPosition: { x: number; y: number }) => onNodeSocialClick(parallelNode, screenPosition)
                 : undefined,
               socialData: nodeSocialData?.[parallelNode.id],
+              reactionCounts: nodeReactionData?.[parallelNode.id]?.reactionCounts,
+              userReaction: nodeReactionData?.[parallelNode.id]?.userReaction,
+              onReaction: onNodeReaction
+                ? (reactionType: string) => onNodeReaction(parallelNode.id, reactionType)
+                : undefined,
               themeColors: {
                 nodeActive: theme.nodeActive,
                 nodeCompleted: theme.nodeCompleted,
@@ -451,6 +473,11 @@ function BPMNQuestMapInner({
               ? (screenPosition: { x: number; y: number }) => onNodeSocialClick(node, screenPosition)
               : undefined,
             socialData: nodeSocialData?.[node.id],
+            reactionCounts: nodeReactionData?.[node.id]?.reactionCounts,
+            userReaction: nodeReactionData?.[node.id]?.userReaction,
+            onReaction: onNodeReaction
+              ? (reactionType: string) => onNodeReaction(node.id, reactionType)
+              : undefined,
             themeColors: {
               nodeActive: theme.nodeActive,
               nodeCompleted: theme.nodeCompleted,
@@ -525,7 +552,7 @@ function BPMNQuestMapInner({
     }
 
     return { flowNodes: nodes, flowEdges: edges };
-  }, [sortedNodes, theme, onCompleteNode, onChecklistToggle, onNodeEdit, onNodeSocialClick, nodeSocialData]);
+  }, [sortedNodes, theme, onCompleteNode, onChecklistToggle, onNodeEdit, onNodeSocialClick, nodeSocialData, nodeReactionData, onNodeReaction]);
 
   // State for draggable nodes
   const [draggableNodes, setDraggableNodes] = useState(flowNodes);
