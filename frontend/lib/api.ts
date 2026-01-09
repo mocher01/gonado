@@ -639,10 +639,13 @@ class ApiClient {
   }
 
   // Resource Drops
-  async dropResource(nodeId: string, message?: string, resources?: any[]): Promise<any> {
+  async dropResource(nodeId: string, data: { url: string; title: string; description?: string }): Promise<any> {
     return this.fetch(`/resource-drops/nodes/${nodeId}`, {
       method: "POST",
-      body: JSON.stringify({ node_id: nodeId, message, resources }),
+      body: JSON.stringify({
+        message: data.description || null,
+        resources: data.url ? [{ url: data.url, title: data.title, type: 'link' }] : [],
+      }),
     });
   }
 
@@ -762,11 +765,25 @@ class ApiClient {
 
   // Node Social Summaries
   async getNodeSocialSummary(nodeId: string): Promise<{
-    reaction_counts: { fire: number; water: number; nature: number; lightning: number; magic: number };
-    total_reactions: number;
-    comment_count: number;
-    user_reaction: string | null;
-    recent_reactors: Array<{
+    node_id: string;
+    reactions: { encourage: number; celebrate: number; light_path: number; send_strength: number; mark_struggle: number };
+    reactions_total: number;
+    comments_count: number;
+    resources_count: number;
+    top_comments: Array<{
+      id: string;
+      user_id: string;
+      username: string;
+      display_name: string | null;
+      content: string;
+      created_at: string;
+      reply_count: number;
+    }>;
+    // Legacy fields for backwards compatibility
+    reaction_counts?: { fire: number; water: number; nature: number; lightning: number; magic: number };
+    comment_count?: number;
+    user_reaction?: string | null;
+    recent_reactors?: Array<{
       id: string;
       username: string;
       display_name: string | null;

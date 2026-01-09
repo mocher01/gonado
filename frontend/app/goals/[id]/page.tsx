@@ -1831,23 +1831,18 @@ export default function GoalDetailPage() {
     try {
       const summary = await api.getNodeSocialSummary(node.id);
       setSelectedNodeSummary({
-        reactions: summary.reaction_counts || { fire: 0, water: 0, nature: 0, lightning: 0, magic: 0 },
-        reactions_total: summary.total_reactions || 0,
-        comments_count: summary.comment_count || 0,
-        resources_count: 0, // TODO: Add resources count to API
-        top_comments: (summary.recent_reactors || []).map((r: any) => ({
-          id: r.id,
-          username: r.username,
-          content: "",
-          reply_count: 0,
-        })),
+        reactions: summary.reactions || { encourage: 0, celebrate: 0, light_path: 0, send_strength: 0, mark_struggle: 0 },
+        reactions_total: summary.reactions_total || 0,
+        comments_count: summary.comments_count || 0,
+        resources_count: summary.resources_count || 0,
+        top_comments: summary.top_comments || [],
       });
       setSelectedNodeUserReaction(summary.user_reaction || null);
     } catch (err) {
       console.error("Failed to load node social summary:", err);
       // Set empty summary on error
       setSelectedNodeSummary({
-        reactions: { fire: 0, water: 0, nature: 0, lightning: 0, magic: 0 },
+        reactions: { encourage: 0, celebrate: 0, light_path: 0, send_strength: 0, mark_struggle: 0 },
         reactions_total: 0,
         comments_count: 0,
         resources_count: 0,
@@ -1942,20 +1937,36 @@ export default function GoalDetailPage() {
     setCommentModalLoading(true);
     try {
       await api.addComment("node", nodeId, content);
-      // Update selectedNodeSummary if it matches the node we commented on
+
+      // Refresh the social summary to get updated top_comments
       if (selectedNode?.id === nodeId) {
-        setSelectedNodeSummary((prev: any) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            comments_count: prev.comments_count + 1,
-          };
-        });
+        try {
+          const refreshedSummary = await api.getNodeSocialSummary(nodeId);
+          setSelectedNodeSummary({
+            reactions: refreshedSummary.reactions || { encourage: 0, celebrate: 0, light_path: 0, send_strength: 0, mark_struggle: 0 },
+            reactions_total: refreshedSummary.reactions_total || 0,
+            comments_count: refreshedSummary.comments_count || 0,
+            resources_count: refreshedSummary.resources_count || 0,
+            top_comments: refreshedSummary.top_comments || [],
+          });
+        } catch (refreshErr) {
+          console.error("Failed to refresh social summary:", refreshErr);
+          // Fallback: just increment the count
+          setSelectedNodeSummary((prev: any) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              comments_count: prev.comments_count + 1,
+            };
+          });
+        }
       }
+
       // Trigger refresh of comments panel if it's showing the same node
       if (showCommentsPanel && commentsPanelNodeId === nodeId) {
         setCommentsPanelRefresh(prev => prev + 1);
       }
+
       // Also update nodeSocialData for the quest map
       setNodeSocialData((prev) => {
         const currentData = prev[nodeId] || {};
@@ -1992,15 +2003,8 @@ export default function GoalDetailPage() {
     }
     setResourceDropLoading(true);
     try {
-      // Format the resource for the API
-      const resources = data.url ? [{
-        url: data.url,
-        title: data.title,
-        description: data.description || "",
-        resource_type: "link",
-      }] : [];
-
-      await api.dropResource(resourceDropNodeId, data.title, resources);
+      // Pass the data directly to the API (it will format it correctly)
+      await api.dropResource(resourceDropNodeId, data);
 
       // Update nodeSocialData to reflect the new resource
       setNodeSocialData((prev) => {
