@@ -53,7 +53,8 @@ async def create_follow(
         target_id=follow_data.target_id
     )
     db.add(follow)
-    await db.flush()
+    await db.commit()
+    await db.refresh(follow)
     return follow
 
 
@@ -77,6 +78,7 @@ async def unfollow(
         raise HTTPException(status_code=404, detail="Not following this target")
 
     await db.delete(follow)
+    await db.commit()
 
 
 @router.get("/users/{user_id}/followers", response_model=list[FollowWithFollowerResponse])
