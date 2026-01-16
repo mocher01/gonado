@@ -155,6 +155,7 @@ class NodeSocialSummary(BaseModel):
     comments_count: int
     resources_count: int
     top_comments: List[TopComment] = []
+    user_reactions: List[str] = []  # Current user's active reactions (supports multiple)
 
 
 class GoalNodesSocialSummary(BaseModel):

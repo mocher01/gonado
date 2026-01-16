@@ -42,45 +42,39 @@ async def create_reaction(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Create, toggle, or replace a reaction on a target.
+    Create or toggle a reaction on a target.
 
     Toggle behavior:
-    - If user has no reaction: create new reaction
+    - If user has no reaction of this type: create new reaction
     - If user has same reaction type: remove it (toggle off)
-    - If user has different reaction type: replace it
+    - Multiple different reaction types are allowed per user
 
     Returns:
-    - The new/updated reaction if created/replaced
+    - The new reaction if created
     - {"removed": true, "reaction_type": "..."} if toggled off
     """
     # Convert enum to string value for storage
     reaction_type_value = reaction_data.reaction_type.value if isinstance(reaction_data.reaction_type, ReactionType) else reaction_data.reaction_type
 
-    # Check if user already has ANY reaction on this target
+    # Check if user already has THIS SPECIFIC reaction type on this target
     result = await db.execute(
         select(Interaction).where(
             Interaction.user_id == current_user.id,
             Interaction.target_type == reaction_data.target_type,
             Interaction.target_id == reaction_data.target_id,
-            Interaction.interaction_type == InteractionType.REACTION
+            Interaction.interaction_type == InteractionType.REACTION,
+            Interaction.reaction_type == reaction_type_value  # Check specific type
         )
     )
     existing = result.scalar_one_or_none()
 
     if existing:
-        if existing.reaction_type == reaction_type_value:
-            # Same reaction type - toggle off (remove)
-            await db.delete(existing)
-            await db.commit()
-            return {"removed": True, "reaction_type": reaction_type_value}
-        else:
-            # Different reaction type - replace
-            existing.reaction_type = reaction_type_value
-            await db.commit()
-            await db.refresh(existing)
-            return existing
+        # Same reaction type exists - toggle off (remove)
+        await db.delete(existing)
+        await db.commit()
+        return {"removed": True, "reaction_type": reaction_type_value}
 
-    # No existing reaction - create new one
+    # No existing reaction of this type - create new one (allows multiple)
     interaction = Interaction(
         user_id=current_user.id,
         target_type=reaction_data.target_type,
@@ -174,8 +168,8 @@ async def get_reaction_summary(
     counts = {row[0]: row[1] for row in rows if row[0]}
     total_count = sum(counts.values())
 
-    # Check if current user has reacted
-    user_reaction = None
+    # Get ALL reactions by current user (allows multiple)
+    user_reactions = []
     if current_user:
         user_result = await db.execute(
             select(Interaction.reaction_type)
@@ -185,16 +179,13 @@ async def get_reaction_summary(
                 Interaction.target_id == target_id,
                 Interaction.interaction_type == InteractionType.REACTION
             )
-            .limit(1)
         )
-        user_reaction_row = user_result.scalar_one_or_none()
-        if user_reaction_row:
-            user_reaction = user_reaction_row
+        user_reactions = [row[0] for row in user_result.fetchall()]
 
     return ReactionSummary(
         total_count=total_count,
         counts=counts,
-        user_reaction=user_reaction
+        user_reactions=user_reactions
     )
 
 

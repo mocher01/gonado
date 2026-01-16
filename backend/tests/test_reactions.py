@@ -4,11 +4,11 @@ Tests for the reactions system.
 Tests Issue #49 fixes:
 - Correct reaction_type storage
 - Toggle behavior (add/remove same reaction)
-- Replace behavior (different reaction replaces existing)
-- Only one reaction per user per target
+- Multiple reactions per user per target (different types)
 
 Updated for Issue #64 - Coaching & Celebration Reactions:
 - encourage, celebrate, light-path, send-strength, mark-struggle
+- Users can have multiple different reaction types on same target
 """
 import uuid
 import pytest
@@ -188,14 +188,14 @@ class TestReactionsAPI:
         assert interaction is None
 
     @pytest.mark.asyncio
-    async def test_replace_different_reaction(
+    async def test_add_multiple_different_reactions(
         self,
         client,
         test_user: User,
         target_id: uuid.UUID,
         db_session: AsyncSession
     ):
-        """Test replacing a reaction with a different type."""
+        """Test adding multiple different reaction types (new behavior - allows multiple)."""
         token = AuthService.create_access_token({"sub": str(test_user.id)})
         headers = {"Authorization": f"Bearer {token}"}
 
@@ -211,7 +211,7 @@ class TestReactionsAPI:
         )
         assert response1.status_code == 200
 
-        # Second reaction - different type (celebrate) should replace
+        # Second reaction - different type (celebrate) should ADD, not replace
         response2 = await client.post(
             "/api/interactions/reactions",
             json={
@@ -226,7 +226,7 @@ class TestReactionsAPI:
         assert "removed" not in data
         assert data.get("reaction_type") == "celebrate"
 
-        # Verify only one reaction exists in database
+        # Verify BOTH reactions exist in database
         result = await db_session.execute(
             select(Interaction).where(
                 Interaction.user_id == test_user.id,
@@ -235,18 +235,19 @@ class TestReactionsAPI:
             )
         )
         interactions = result.scalars().all()
-        assert len(interactions) == 1
-        assert interactions[0].reaction_type == "celebrate"
+        assert len(interactions) == 2
+        reaction_types = {i.reaction_type for i in interactions}
+        assert reaction_types == {"encourage", "celebrate"}
 
     @pytest.mark.asyncio
-    async def test_only_one_reaction_per_user_per_target(
+    async def test_multiple_reactions_per_user_per_target(
         self,
         client,
         test_user: User,
         target_id: uuid.UUID,
         db_session: AsyncSession
     ):
-        """Test that a user can only have one reaction per target (Issue #64)."""
+        """Test that a user can have multiple different reactions per target (new behavior)."""
         token = AuthService.create_access_token({"sub": str(test_user.id)})
         headers = {"Authorization": f"Bearer {token}"}
 
@@ -262,7 +263,7 @@ class TestReactionsAPI:
                 headers=headers
             )
 
-        # Verify only one reaction exists
+        # Verify ALL five reactions exist
         result = await db_session.execute(
             select(Interaction).where(
                 Interaction.user_id == test_user.id,
@@ -271,9 +272,10 @@ class TestReactionsAPI:
             )
         )
         interactions = result.scalars().all()
-        assert len(interactions) == 1
-        # Should be the last one (mark-struggle)
-        assert interactions[0].reaction_type == "mark-struggle"
+        assert len(interactions) == 5
+        # Should have all five reaction types
+        reaction_types = {i.reaction_type for i in interactions}
+        assert reaction_types == {"encourage", "celebrate", "light-path", "send-strength", "mark-struggle"}
 
     @pytest.mark.asyncio
     async def test_different_users_can_react_same_target(
@@ -351,7 +353,7 @@ class TestReactionSummaryAPI:
         data = response.json()
         assert data["total_count"] == 0
         assert data["counts"] == {}
-        assert data["user_reaction"] is None
+        assert data["user_reactions"] == []
 
     @pytest.mark.asyncio
     async def test_get_reaction_summary_with_reactions(
@@ -400,7 +402,8 @@ class TestReactionSummaryAPI:
         data = response.json()
         assert data["total_count"] == 2
         assert data["counts"]["encourage"] == 2
-        assert data["user_reaction"] == "encourage"
+        assert "encourage" in data["user_reactions"]
+        assert len(data["user_reactions"]) == 1
 
     @pytest.mark.asyncio
     async def test_summary_reflects_toggle(
@@ -432,7 +435,7 @@ class TestReactionSummaryAPI:
         )
         data1 = response1.json()
         assert data1["total_count"] == 1
-        assert data1["user_reaction"] == "encourage"
+        assert "encourage" in data1["user_reactions"]
 
         # Toggle off
         await client.post(
@@ -452,17 +455,17 @@ class TestReactionSummaryAPI:
         )
         data2 = response2.json()
         assert data2["total_count"] == 0
-        assert data2["user_reaction"] is None
+        assert data2["user_reactions"] == []
 
     @pytest.mark.asyncio
-    async def test_summary_reflects_replace(
+    async def test_summary_reflects_multiple_reactions(
         self,
         client,
         test_user: User,
         target_id: uuid.UUID,
         db_session: AsyncSession
     ):
-        """Test that summary correctly reflects replacement behavior (Issue #64)."""
+        """Test that summary correctly reflects multiple reactions behavior (Issue #64)."""
         token = AuthService.create_access_token({"sub": str(test_user.id)})
         headers = {"Authorization": f"Bearer {token}"}
 
@@ -477,7 +480,7 @@ class TestReactionSummaryAPI:
             headers=headers
         )
 
-        # Replace with celebrate
+        # Add celebrate (should not replace, both should exist)
         await client.post(
             "/api/interactions/reactions",
             json={
@@ -488,16 +491,18 @@ class TestReactionSummaryAPI:
             headers=headers
         )
 
-        # Verify in summary - should show celebrate, not encourage
+        # Verify in summary - should show BOTH reactions
         response = await client.get(
             f"/api/interactions/reactions/node/{target_id}/summary",
             headers=headers
         )
         data = response.json()
-        assert data["total_count"] == 1
-        assert data["counts"].get("encourage", 0) == 0
+        assert data["total_count"] == 2
+        assert data["counts"]["encourage"] == 1
         assert data["counts"]["celebrate"] == 1
-        assert data["user_reaction"] == "celebrate"
+        assert "encourage" in data["user_reactions"]
+        assert "celebrate" in data["user_reactions"]
+        assert len(data["user_reactions"]) == 2
 
 
 class TestReactionUnit:

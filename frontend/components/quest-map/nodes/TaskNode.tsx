@@ -37,6 +37,19 @@ interface NodeReactionCounts {
   mark_struggle: number;
 }
 
+interface Comment {
+  id: string;
+  author: string;
+  text: string;
+  timeAgo: string;
+}
+
+interface Resource {
+  id: string;
+  type: 'file' | 'link';
+  title: string;
+}
+
 interface TaskNodeData {
   nodeId: string;
   title: string;
@@ -48,18 +61,32 @@ interface TaskNodeData {
   // Sequential/Parallel structuring (Issue #63)
   is_sequential?: boolean;
   parallel_group?: number | null;
-  can_interact?: boolean;
   extra_data?: {
     checklist?: ChecklistItem[];
   };
   onComplete?: () => void;
   onChecklistToggle?: (itemId: string, completed: boolean) => void;
   onEdit?: () => void;
-  onSocialClick?: (screenPosition: { x: number; y: number }) => void;
-  socialData?: NodeSocialSummary;
+
+  // Reactions - MULTIPLE allowed
   reactionCounts?: NodeReactionCounts;
-  userReaction?: string | null;
+  userReactions?: string[];  // User's active reactions (can have multiple)
   onReaction?: (reactionType: string) => void;
+
+  // Comments
+  latestComments?: Comment[];
+  commentsCount?: number;
+  onCommentsClick?: () => void;
+
+  // Resources
+  latestResources?: Resource[];
+  resourcesCount?: number;
+  onResourcesClick?: () => void;
+
+  // Permissions
+  canInteract?: boolean;  // false for anonymous users
+  isOwner?: boolean;  // true for owner/admin
+
   themeColors: {
     nodeActive: string;
     nodeCompleted: string;
@@ -111,7 +138,28 @@ function parseDescription(desc: string | null): string[] {
 }
 
 function TaskNodeComponent({ data, selected }: TaskNodeProps) {
-  const { title, description, status, order, onComplete, onChecklistToggle, onEdit, onSocialClick, socialData, reactionCounts, userReaction, onReaction, themeColors, extra_data } = data;
+  const {
+    title,
+    description,
+    status,
+    order,
+    onComplete,
+    onChecklistToggle,
+    onEdit,
+    reactionCounts,
+    userReactions = [],
+    onReaction,
+    latestComments,
+    commentsCount = 0,
+    onCommentsClick,
+    latestResources,
+    resourcesCount = 0,
+    onResourcesClick,
+    canInteract = true,
+    isOwner = false,
+    themeColors,
+    extra_data
+  } = data;
 
   const isCompleted = status === "completed";
   const isActive = status === "active";
@@ -126,24 +174,32 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
   const statusIcon = isCompleted ? "✓" : isActive ? "●" : "○";
   const statusText = isCompleted ? "Done" : isActive ? "Current" : "Locked";
 
-  // Social activity indicators
-  const hasComments = socialData && socialData.comments_count > 0;
-  const hasReactions = socialData && socialData.reactions_total > 0;
-  const hasResources = socialData && socialData.resources_count > 0;
-  const hasSocialActivity = hasComments || hasReactions || hasResources;
-
-  // Handle social click - calculate screen position from click event
-  const handleSocialClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onSocialClick) {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      // Position popup to the right of the social bar
-      const screenPosition = {
-        x: rect.right + 10,
-        y: rect.top,
-      };
-      onSocialClick(screenPosition);
+  // Handle reaction click
+  const handleReactionClick = (reactionType: string) => {
+    if (!canInteract) {
+      // Show login prompt for anonymous users
+      alert("Please log in to react to this step");
+      return;
     }
+    onReaction?.(reactionType);
+  };
+
+  // Handle comments click
+  const handleCommentsClick = () => {
+    if (!canInteract) {
+      alert("Please log in to view and add comments");
+      return;
+    }
+    onCommentsClick?.();
+  };
+
+  // Handle resources click
+  const handleResourcesClick = () => {
+    if (!canInteract) {
+      alert("Please log in to view and add resources");
+      return;
+    }
+    onResourcesClick?.();
   };
 
   return (
@@ -249,106 +305,6 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
           </div>
         </div>
 
-        {/* Social Activity Bar - clickable area for social features */}
-        {(hasSocialActivity || onSocialClick) && (
-          <motion.div
-            className="group relative px-4 py-3 flex items-center justify-center gap-3 cursor-pointer transition-all"
-            style={{
-              background: hasSocialActivity
-                ? "linear-gradient(135deg, rgba(20, 184, 166, 0.15), rgba(6, 182, 212, 0.15))"
-                : "linear-gradient(135deg, rgba(20, 184, 166, 0.1), rgba(6, 182, 212, 0.1))",
-              borderBottom: "1px solid rgba(20, 184, 166, 0.3)",
-            }}
-            onClick={handleSocialClick}
-            title="Click to view reactions, comments, and resources"
-            whileHover={{
-              background: "linear-gradient(135deg, rgba(20, 184, 166, 0.25), rgba(6, 182, 212, 0.25))",
-              scale: 1.02,
-            }}
-            whileTap={{ scale: 0.98 }}
-            animate={{
-              boxShadow: hasSocialActivity
-                ? ["0 0 0 rgba(20, 184, 166, 0)", "0 0 12px rgba(20, 184, 166, 0.3)", "0 0 0 rgba(20, 184, 166, 0)"]
-                : ["0 0 0 rgba(20, 184, 166, 0)", "0 0 8px rgba(20, 184, 166, 0.2)", "0 0 0 rgba(20, 184, 166, 0)"],
-            }}
-            transition={{
-              boxShadow: {
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut",
-              },
-            }}
-          >
-            {/* Hover overlay effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-teal-500/0 via-teal-500/10 to-teal-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-            {/* Content wrapper */}
-            <div className="relative flex items-center justify-center gap-3">
-              {/* Chat icon - always visible as visual affordance */}
-              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-teal-500/20 group-hover:bg-teal-500/30 transition-colors">
-                <svg className="w-3 h-3 text-teal-300 group-hover:text-teal-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-
-              {/* Reactions indicator with glow */}
-              {hasReactions && (
-                <span
-                  className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
-                  style={{
-                    background: "rgba(251, 191, 36, 0.2)",
-                    boxShadow: "0 0 12px rgba(251, 191, 36, 0.4)",
-                    border: "1px solid rgba(251, 191, 36, 0.3)",
-                  }}
-                >
-                  <span className="text-amber-400">🔥</span>
-                  <span className="text-amber-300">{socialData!.reactions_total}</span>
-                </span>
-              )}
-
-              {/* Comments badge */}
-              {hasComments && (
-                <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-cyan-500/20 border border-cyan-500/30">
-                  <span>💬</span>
-                  <span className="text-cyan-300">{socialData!.comments_count}</span>
-                </span>
-              )}
-
-              {/* Resources badge */}
-              {hasResources && (
-                <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-teal-500/20 border border-teal-500/30">
-                  <span>📦</span>
-                  <span className="text-teal-300">{socialData!.resources_count}</span>
-                </span>
-              )}
-
-              {/* If no activity but click handler exists, show CTA */}
-              {!hasSocialActivity && onSocialClick && (
-                <motion.span
-                  className="text-xs text-teal-300 group-hover:text-teal-200 flex items-center gap-2 font-medium"
-                  animate={{
-                    opacity: [0.7, 1, 0.7],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                >
-                  <span>Click to react or comment</span>
-                </motion.span>
-              )}
-
-              {/* Arrow hint on hover */}
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-                <svg className="w-4 h-4 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
         {/* Content */}
         <div className="px-4 py-4">
           {/* Title */}
@@ -374,10 +330,10 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
                 <div
                   key={item.id}
                   className={`flex items-start gap-3 text-sm group ${
-                    isActive && onChecklistToggle ? "cursor-pointer" : ""
+                    isActive && isOwner && onChecklistToggle ? "cursor-pointer" : ""
                   }`}
                   onClick={(e) => {
-                    if (isActive && onChecklistToggle) {
+                    if (isActive && isOwner && onChecklistToggle) {
                       e.stopPropagation();
                       onChecklistToggle(item.id, !item.completed);
                     }
@@ -388,7 +344,7 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
                     className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
                       item.completed
                         ? "bg-emerald-500 border-emerald-500"
-                        : isActive
+                        : isActive && isOwner
                         ? "border-slate-500 group-hover:border-emerald-400"
                         : "border-slate-600"
                     }`}
@@ -456,133 +412,105 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
             </p>
           )}
 
-          {/* Reactions Bar - Directly on node (Issue #49) */}
-          {reactionCounts && onReaction && (
-            <div className="mt-4 pt-3 border-t border-white/5">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {/* Encourage */}
-                <motion.button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReaction("encourage");
-                  }}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-all ${
-                    userReaction === "encourage"
-                      ? "bg-emerald-500/20 border border-emerald-500/40"
-                      : "bg-white/5 hover:bg-white/10 border border-transparent"
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <span className="text-base">👊</span>
-                  <span className={`text-xs font-medium ${
-                    userReaction === "encourage" ? "text-emerald-400" : "text-slate-400"
-                  }`}>
-                    {reactionCounts.encourage || 0}
-                  </span>
-                </motion.button>
+          {/* Reactions Bar - Centered with tooltips (Issue #49) */}
+          <div className="mt-4 pt-3 border-t border-white/5">
+            <div className="flex items-center justify-center gap-3">
+              {[
+                { type: 'encourage', emoji: '👊', label: 'Keep going!', activeClass: 'bg-emerald-500/20 border-emerald-500/50 shadow-emerald-500/20', textClass: 'text-emerald-300' },
+                { type: 'celebrate', emoji: '🎉', label: 'Amazing progress!', activeClass: 'bg-amber-500/20 border-amber-500/50 shadow-amber-500/20', textClass: 'text-amber-300' },
+                { type: 'light-path', emoji: '🔦', label: 'Showing the way', activeClass: 'bg-blue-500/20 border-blue-500/50 shadow-blue-500/20', textClass: 'text-blue-300' },
+                { type: 'send-strength', emoji: '💪', label: 'Power boost!', activeClass: 'bg-red-500/20 border-red-500/50 shadow-red-500/20', textClass: 'text-red-300' },
+                { type: 'mark-struggle', emoji: '🚩', label: 'I see you struggling', activeClass: 'bg-purple-500/20 border-purple-500/50 shadow-purple-500/20', textClass: 'text-purple-300' },
+              ].map(reaction => {
+                const isActive = userReactions.includes(reaction.type);
+                const count = reactionCounts?.[reaction.type.replace(/-/g, '_') as keyof NodeReactionCounts] || 0;
 
-                {/* Celebrate */}
-                <motion.button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReaction("celebrate");
-                  }}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-all ${
-                    userReaction === "celebrate"
-                      ? "bg-amber-500/20 border border-amber-500/40"
-                      : "bg-white/5 hover:bg-white/10 border border-transparent"
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <span className="text-base">🎉</span>
-                  <span className={`text-xs font-medium ${
-                    userReaction === "celebrate" ? "text-amber-400" : "text-slate-400"
-                  }`}>
-                    {reactionCounts.celebrate || 0}
-                  </span>
-                </motion.button>
+                return (
+                  <motion.button
+                    key={reaction.type}
+                    title={reaction.label}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReactionClick(reaction.type);
+                    }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-all border-2 ${
+                      isActive
+                        ? `${reaction.activeClass} shadow-lg`
+                        : "bg-white/5 hover:bg-white/10 border-transparent hover:border-white/20"
+                    }`}
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <span className="text-lg">{reaction.emoji}</span>
+                    <span className={`text-xs font-medium ${
+                      isActive ? reaction.textClass : "text-slate-400"
+                    }`}>
+                      {count}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
 
-                {/* Light Path */}
-                <motion.button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReaction("light-path");
-                  }}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-all ${
-                    userReaction === "light-path"
-                      ? "bg-blue-500/20 border border-blue-500/40"
-                      : "bg-white/5 hover:bg-white/10 border border-transparent"
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <span className="text-base">🔦</span>
-                  <span className={`text-xs font-medium ${
-                    userReaction === "light-path" ? "text-blue-400" : "text-slate-400"
-                  }`}>
-                    {reactionCounts.light_path || 0}
-                  </span>
-                </motion.button>
-
-                {/* Send Strength */}
-                <motion.button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReaction("send-strength");
-                  }}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-all ${
-                    userReaction === "send-strength"
-                      ? "bg-red-500/20 border border-red-500/40"
-                      : "bg-white/5 hover:bg-white/10 border border-transparent"
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <span className="text-base">💪</span>
-                  <span className={`text-xs font-medium ${
-                    userReaction === "send-strength" ? "text-red-400" : "text-slate-400"
-                  }`}>
-                    {reactionCounts.send_strength || 0}
-                  </span>
-                </motion.button>
-
-                {/* Mark Struggle */}
-                <motion.button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReaction("mark-struggle");
-                  }}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-all ${
-                    userReaction === "mark-struggle"
-                      ? "bg-purple-500/20 border border-purple-500/40"
-                      : "bg-white/5 hover:bg-white/10 border border-transparent"
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <span className="text-base">🚩</span>
-                  <span className={`text-xs font-medium ${
-                    userReaction === "mark-struggle" ? "text-purple-400" : "text-slate-400"
-                  }`}>
-                    {reactionCounts.mark_struggle || 0}
-                  </span>
-                </motion.button>
+          {/* Comments Section - TikTok style */}
+          <div className="mt-3 pt-3 border-t border-white/10">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 space-y-1 text-sm text-slate-400 min-h-[2rem]">
+                {latestComments && latestComments.length > 0 ? (
+                  latestComments.slice(0, 2).map(c => (
+                    <div key={c.id} className="truncate">
+                      <span className="font-medium text-cyan-400">@{c.author}</span>: "{c.text}" <span className="text-slate-500">• {c.timeAgo}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-slate-500 italic">No comments yet</div>
+                )}
               </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCommentsClick();
+                }}
+                className="flex flex-col items-center ml-3 text-cyan-400 hover:text-cyan-300 transition-colors flex-shrink-0"
+                title="View all comments"
+              >
+                <span className="text-2xl">💬</span>
+                <span className="text-xs font-medium">{commentsCount}</span>
+              </button>
             </div>
-          )}
+          </div>
 
-          {/* Comments Indicator */}
-          {socialData && socialData.comments_count > 0 && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-cyan-400">
-              <span>💬</span>
-              <span>{socialData.comments_count} {socialData.comments_count === 1 ? 'comment' : 'comments'}</span>
+          {/* Resources Section - TikTok style */}
+          <div className="mt-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 flex flex-wrap gap-2 text-sm text-slate-400 min-h-[1.5rem]">
+                {latestResources && latestResources.length > 0 ? (
+                  latestResources.slice(0, 2).map(r => (
+                    <span key={r.id} className="flex items-center gap-1">
+                      {r.type === 'file' ? '📄' : '🔗'} <span className="truncate max-w-[120px]">{r.title}</span>
+                    </span>
+                  ))
+                ) : (
+                  <div className="text-slate-500 italic">No resources yet</div>
+                )}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleResourcesClick();
+                }}
+                className="flex flex-col items-center ml-3 text-teal-400 hover:text-teal-300 transition-colors flex-shrink-0"
+                title="View all resources"
+              >
+                <span className="text-2xl">📦</span>
+                <span className="text-xs font-medium">{resourcesCount}</span>
+              </button>
             </div>
-          )}
+          </div>
 
-          {/* Complete button - ALWAYS visible for active nodes */}
-          {isActive && onComplete && (
+          {/* Complete button - Only visible for owner on active nodes */}
+          {isActive && isOwner && onComplete && (
             <motion.button
               className="mt-4 w-full py-3 rounded-xl text-white font-semibold text-base flex items-center justify-center gap-2 transition-shadow"
               style={{

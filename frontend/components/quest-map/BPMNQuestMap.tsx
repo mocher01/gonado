@@ -59,7 +59,20 @@ interface NodeReactionCounts {
 
 interface NodeReactionData {
   reactionCounts: NodeReactionCounts;
-  userReaction: string | null;
+  userReactions: string[];  // Changed from userReaction (single) to userReactions (array)
+}
+
+interface Comment {
+  id: string;
+  author: string;
+  text: string;
+  timeAgo: string;
+}
+
+interface Resource {
+  id: string;
+  type: 'file' | 'link';
+  title: string;
 }
 
 interface BPMNQuestMapProps {
@@ -76,6 +89,12 @@ interface BPMNQuestMapProps {
   nodeSocialData?: Record<string, NodeSocialSummary>;
   nodeReactionData?: Record<string, NodeReactionData>;
   onNodeReaction?: (nodeId: string, reactionType: string) => void;
+  // New props for comments and resources
+  nodeComments?: Record<string, Comment[]>;
+  nodeResources?: Record<string, Resource[]>;
+  onNodeCommentsClick?: (nodeId: string) => void;
+  onNodeResourcesClick?: (nodeId: string) => void;
+  canInteract?: boolean;  // false for anonymous users
 }
 
 const THEME_CONFIGS: Record<
@@ -186,6 +205,11 @@ function BPMNQuestMapInner({
   nodeSocialData,
   nodeReactionData,
   onNodeReaction,
+  nodeComments,
+  nodeResources,
+  onNodeCommentsClick,
+  onNodeResourcesClick,
+  canInteract = true,
   theme,
 }: BPMNQuestMapProps & { theme: typeof THEME_CONFIGS.mountain }) {
   // Import React Flow hooks dynamically
@@ -355,16 +379,27 @@ function BPMNQuestMapInner({
               onEdit: onNodeEdit
                 ? () => onNodeEdit(parallelNode.id)
                 : undefined,
-              // Only show social interaction prompts for visitors, not owners
-              onSocialClick: !isOwner && onNodeSocialClick
-                ? (screenPosition: { x: number; y: number }) => onNodeSocialClick(parallelNode, screenPosition)
-                : undefined,
-              socialData: nodeSocialData?.[parallelNode.id],
+              // Reactions
               reactionCounts: nodeReactionData?.[parallelNode.id]?.reactionCounts,
-              userReaction: nodeReactionData?.[parallelNode.id]?.userReaction,
+              userReactions: nodeReactionData?.[parallelNode.id]?.userReactions || [],
               onReaction: onNodeReaction
                 ? (reactionType: string) => onNodeReaction(parallelNode.id, reactionType)
                 : undefined,
+              // Comments
+              latestComments: nodeComments?.[parallelNode.id],
+              commentsCount: nodeSocialData?.[parallelNode.id]?.comments_count || 0,
+              onCommentsClick: onNodeCommentsClick
+                ? () => onNodeCommentsClick(parallelNode.id)
+                : undefined,
+              // Resources
+              latestResources: nodeResources?.[parallelNode.id],
+              resourcesCount: nodeSocialData?.[parallelNode.id]?.resources_count || 0,
+              onResourcesClick: onNodeResourcesClick
+                ? () => onNodeResourcesClick(parallelNode.id)
+                : undefined,
+              // Permissions
+              canInteract,
+              isOwner,
               themeColors: {
                 nodeActive: theme.nodeActive,
                 nodeCompleted: theme.nodeCompleted,
@@ -468,16 +503,27 @@ function BPMNQuestMapInner({
             onEdit: onNodeEdit
               ? () => onNodeEdit(node.id)
               : undefined,
-            // Only show social interaction prompts for visitors, not owners
-            onSocialClick: !isOwner && onNodeSocialClick
-              ? (screenPosition: { x: number; y: number }) => onNodeSocialClick(node, screenPosition)
-              : undefined,
-            socialData: nodeSocialData?.[node.id],
+            // Reactions
             reactionCounts: nodeReactionData?.[node.id]?.reactionCounts,
-            userReaction: nodeReactionData?.[node.id]?.userReaction,
+            userReactions: nodeReactionData?.[node.id]?.userReactions || [],
             onReaction: onNodeReaction
               ? (reactionType: string) => onNodeReaction(node.id, reactionType)
               : undefined,
+            // Comments
+            latestComments: nodeComments?.[node.id],
+            commentsCount: nodeSocialData?.[node.id]?.comments_count || 0,
+            onCommentsClick: onNodeCommentsClick
+              ? () => onNodeCommentsClick(node.id)
+              : undefined,
+            // Resources
+            latestResources: nodeResources?.[node.id],
+            resourcesCount: nodeSocialData?.[node.id]?.resources_count || 0,
+            onResourcesClick: onNodeResourcesClick
+              ? () => onNodeResourcesClick(node.id)
+              : undefined,
+            // Permissions
+            canInteract,
+            isOwner,
             themeColors: {
               nodeActive: theme.nodeActive,
               nodeCompleted: theme.nodeCompleted,

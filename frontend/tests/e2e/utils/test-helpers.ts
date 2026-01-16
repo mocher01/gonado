@@ -4,8 +4,8 @@ import { Page, expect, Locator } from '@playwright/test';
  * Test Helper Utilities for Gonado E2E Tests
  */
 
-// Test goal ID with known data (France trip goal - has nodes and is public)
-export const TEST_GOAL_ID = '2edc91f9-62b8-4683-9bf5-8e9b6fb1c03c';
+// Test goal ID with known data (Test Goal for Resource Drops - has nodes and is public)
+export const TEST_GOAL_ID = 'dec48a4f-06dc-4cfe-8df7-4ce6b76a16c4';
 export const GOAL_PAGE_URL = `/goals/${TEST_GOAL_ID}`;
 
 /**

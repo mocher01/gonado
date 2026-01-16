@@ -53,4 +53,4 @@ class ReactionSummary(BaseModel):
     """Summary of reactions with counts per reaction type."""
     total_count: int
     counts: Dict[str, int]
-    user_reaction: Optional[str] = None
+    user_reactions: list[str] = []  # User can have multiple reactions

@@ -1,12 +1,12 @@
 from uuid import UUID
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from app.database import get_db
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_optional_user
 from app.schemas.node import (
     NodeCreate, NodeUpdate, NodeResponse, NodeStatusUpdate, NodePositionUpdate,
     DependencyCreate, DependencyResponse, NodeWithDependenciesResponse,
@@ -775,7 +775,8 @@ async def _get_node_social_summary(
 @router.get("/{node_id}/social-summary", response_model=NodeSocialSummary)
 async def get_node_social_summary(
     node_id: UUID,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user)
 ):
     """Get social activity summary for a single node."""
     # Verify node exists
@@ -784,7 +785,22 @@ async def get_node_social_summary(
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
 
-    return await _get_node_social_summary(db, node_id)
+    summary = await _get_node_social_summary(db, node_id)
+
+    # Get current user's reactions if logged in
+    if current_user:
+        user_reactions_result = await db.execute(
+            select(Interaction.reaction_type).where(
+                Interaction.user_id == current_user.id,
+                Interaction.target_type == TargetType.NODE,
+                Interaction.target_id == node_id,
+                Interaction.interaction_type == InteractionType.REACTION
+            )
+        )
+        user_reactions = [row[0] for row in user_reactions_result.fetchall()]
+        summary.user_reactions = user_reactions
+
+    return summary
 
 
 @router.get("/goal/{goal_id}/social-summary", response_model=GoalNodesSocialSummary)
