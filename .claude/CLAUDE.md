@@ -16,6 +16,39 @@ I do NOT close issues without proper testing and verification.
 4. **ALWAYS use proper status labels** on issues
 5. **ALWAYS verify acceptance criteria** before closing
 6. **ALWAYS restart Docker containers** after code changes
+7. **NEVER execute destructive database/docker commands** (DROP SCHEMA, DROP TABLE, TRUNCATE, docker system prune, docker volume rm, rm -rf) - these destroy user data permanently
+
+---
+
+## CRITICAL: FORBIDDEN OPERATIONS
+
+**The following commands are ABSOLUTELY FORBIDDEN for all agents:**
+
+```bash
+# DATABASE DESTRUCTION - NEVER DO THIS
+DROP SCHEMA
+DROP DATABASE
+DROP TABLE
+TRUNCATE
+DELETE FROM <table>  (without specific WHERE clause)
+
+# DOCKER DESTRUCTION - NEVER DO THIS
+docker system prune
+docker volume rm
+docker-compose down -v
+
+# FILE SYSTEM DESTRUCTION - NEVER DO THIS
+rm -rf
+```
+
+**If you or any agent encounters database/migration issues:**
+1. STOP immediately
+2. Report the specific error
+3. DO NOT attempt to "fix" by dropping/recreating anything
+4. Ask user for explicit permission before any destructive action
+5. Suggest non-destructive alternatives (fix migration, rollback, etc.)
+
+**Violation = permanent data loss = unacceptable**
 
 ---
 

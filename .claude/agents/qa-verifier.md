@@ -85,3 +85,11 @@ APPROVED / BLOCKED
 - NEVER approve if tests fail
 - Be specific about what failed and why
 - If tests don't exist for acceptance criteria, CREATE THEM FIRST
+
+## CRITICAL: FORBIDDEN OPERATIONS
+**NEVER execute destructive database/docker commands:**
+- DROP SCHEMA/DATABASE/TABLE, TRUNCATE, DELETE FROM (without WHERE)
+- docker system prune, docker volume rm, docker-compose down -v
+- rm -rf
+
+**If database issues occur: STOP and report to orchestrator. DO NOT attempt fixes.**

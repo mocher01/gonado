@@ -237,3 +237,66 @@ async def get_goal_resource_summary(
         ))
 
     return summaries
+
+
+@router.get("/goals/{goal_id}/nodes", response_model=dict)
+async def get_goal_nodes_resources(
+    goal_id: UUID,
+    limit: int = 2,
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get recent resource drops for all nodes in a goal (for node card display)."""
+    # Verify goal exists
+    result = await db.execute(
+        select(Goal).where(Goal.id == goal_id)
+    )
+    goal = result.scalar_one_or_none()
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    # Get all nodes for this goal
+    result = await db.execute(
+        select(Node).where(Node.goal_id == goal_id)
+    )
+    nodes = result.scalars().all()
+    node_ids = [n.id for n in nodes]
+
+    if not node_ids:
+        return {"goal_id": str(goal_id), "nodes": {}}
+
+    # Get all drops with user info
+    result = await db.execute(
+        select(ResourceDrop)
+        .options(selectinload(ResourceDrop.user))
+        .where(ResourceDrop.node_id.in_(node_ids))
+        .order_by(ResourceDrop.created_at.desc())
+    )
+    drops = result.scalars().all()
+
+    # Group by node and get recent resources
+    nodes_data = {}
+    for node_id in node_ids:
+        node_drops = [d for d in drops if d.node_id == node_id]
+        recent_resources = []
+        for drop in node_drops[:limit]:
+            for resource in (drop.resources or [])[:1]:  # First resource from each drop
+                recent_resources.append({
+                    "id": str(drop.id),
+                    "title": resource.get("title", "Untitled"),
+                    "type": resource.get("type", "link"),
+                    "url": resource.get("url", ""),
+                    "dropper": drop.user.username if drop.user else "unknown",
+                })
+                if len(recent_resources) >= limit:
+                    break
+            if len(recent_resources) >= limit:
+                break
+
+        nodes_data[str(node_id)] = {
+            "node_id": str(node_id),
+            "resources_count": len(node_drops),
+            "recent_resources": recent_resources,
+        }
+
+    return {"goal_id": str(goal_id), "nodes": nodes_data}

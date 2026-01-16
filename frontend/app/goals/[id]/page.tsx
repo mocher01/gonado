@@ -15,6 +15,8 @@ import { NodeFormModal } from "@/components/quest-map/NodeFormModal";
 import { EditGoalModal } from "@/components/goals/EditGoalModal";
 import { NodeCarousel, SwipeIndicator } from "@/components/mobile";
 import { GoalPageHeader } from "@/components/goal/GoalPageHeader";
+import { NodeCommentsModal } from "@/components/modals/NodeCommentsModal";
+import { NodeResourcesModal } from "@/components/modals/NodeResourcesModal";
 
 // Lazy load BPMNQuestMap for better performance
 const BPMNQuestMap = dynamic(
@@ -1259,6 +1261,24 @@ function OwnerStatsPanel({
 }
 
 // ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
+}
+
+// ============================================
 // MAIN PAGE COMPONENT
 // ============================================
 
@@ -1306,13 +1326,15 @@ export default function GoalDetailPage() {
   const [nodePopupPosition, setNodePopupPosition] = useState({ x: 0, y: 0 });
   const [showNodePopup, setShowNodePopup] = useState(false);
   const [nodeSocialData, setNodeSocialData] = useState<Record<string, any>>({});
+  const [nodeCommentsData, setNodeCommentsData] = useState<Record<string, Array<{id: string; author: string; text: string; timeAgo: string}>>>({});
+  const [nodeResourcesData, setNodeResourcesData] = useState<Record<string, Array<{id: string; type: 'file' | 'link'; title: string}>>>({});
   const [selectedNodeSummary, setSelectedNodeSummary] = useState<any>(null);
   const [selectedNodeUserReaction, setSelectedNodeUserReaction] = useState<string | null>(null);
 
   // Node reaction data for direct-on-node reactions (Issue #49)
   const [nodeReactionData, setNodeReactionData] = useState<Record<string, {
     reactionCounts: { encourage: number; celebrate: number; light_path: number; send_strength: number; mark_struggle: number };
-    userReaction: string | null;
+    userReactions: string[];  // Changed from userReaction (single) to userReactions (array)
   }>>({});
 
   // Comment modal state
@@ -1326,6 +1348,12 @@ export default function GoalDetailPage() {
   const [commentsPanelNodeId, setCommentsPanelNodeId] = useState<string>("");
   const [commentsPanelNodeTitle, setCommentsPanelNodeTitle] = useState<string>("");
   const [commentsPanelRefresh, setCommentsPanelRefresh] = useState(0);
+
+  // Comments modal state (new simplified modal)
+  const [commentsModalNode, setCommentsModalNode] = useState<{ id: string; title: string } | null>(null);
+
+  // Resources modal state (new simplified modal)
+  const [resourcesModalNode, setResourcesModalNode] = useState<{ id: string; title: string } | null>(null);
 
   // Resource drop modal state
   const [showResourceDropModal, setShowResourceDropModal] = useState(false);
@@ -1405,16 +1433,18 @@ export default function GoalDetailPage() {
       const reactionPromises = nodeIds.map(async (nodeId) => {
         try {
           const summary = await api.getNodeSocialSummary(nodeId);
+          // API now returns user_reactions as array (supports multiple reactions per user)
+          const userReactionsArray = summary.user_reactions || [];
           return {
             nodeId,
             reactionCounts: summary.reactions || { encourage: 0, celebrate: 0, light_path: 0, send_strength: 0, mark_struggle: 0 },
-            userReaction: summary.user_reaction || null,
+            userReactions: userReactionsArray,
           };
         } catch {
           return {
             nodeId,
             reactionCounts: { encourage: 0, celebrate: 0, light_path: 0, send_strength: 0, mark_struggle: 0 },
-            userReaction: null,
+            userReactions: [],
           };
         }
       });
@@ -1424,7 +1454,7 @@ export default function GoalDetailPage() {
       results.forEach((result) => {
         reactionMap[result.nodeId] = {
           reactionCounts: result.reactionCounts,
-          userReaction: result.userReaction,
+          userReactions: result.userReactions,
         };
       });
       setNodeReactionData(reactionMap);
@@ -1444,6 +1474,8 @@ export default function GoalDetailPage() {
         boostsData,
         nodesSocialData,
         struggleStatusData,
+        goalNodeCommentsData,
+        goalNodeResourcesData,
       ] = await Promise.all([
         api.getGoalFollowers(goalId).catch(() => ({ followers: [], total: 0 })),
         api.getReactions("goal", goalId).catch(() => ({ counts: {}, user_reaction: null })),
@@ -1453,10 +1485,43 @@ export default function GoalDetailPage() {
         api.getGoalBoosts(goalId).catch(() => ({ boosts: [], total: 0 })),
         api.getGoalNodesSocialSummary(goalId).catch(() => ({ nodes: {} })),
         api.getStruggleStatus(goalId).catch(() => null),
+        api.getGoalNodesComments(goalId, 3).catch(() => ({ nodes: {} })),
+        api.getGoalNodesResources(goalId, 2).catch(() => ({ nodes: {} })),
       ]);
 
       // Set node social data for the quest map
       setNodeSocialData(nodesSocialData.nodes || {});
+
+      // Transform node comments for display on node cards
+      const transformedComments: Record<string, Array<{id: string; author: string; text: string; timeAgo: string}>> = {};
+      const nodesCommentsObj = (goalNodeCommentsData?.nodes || {}) as Record<string, any>;
+      for (const nodeId of Object.keys(nodesCommentsObj)) {
+        const nodeData = nodesCommentsObj[nodeId];
+        if (nodeData?.recent_comments) {
+          transformedComments[nodeId] = nodeData.recent_comments.map((c: any) => ({
+            id: c.id,
+            author: c.user?.username || 'unknown',
+            text: c.content,
+            timeAgo: formatTimeAgo(c.created_at),
+          }));
+        }
+      }
+      setNodeCommentsData(transformedComments);
+
+      // Transform node resources for display on node cards
+      const transformedResources: Record<string, Array<{id: string; type: 'file' | 'link'; title: string}>> = {};
+      const nodesResourcesObj = (goalNodeResourcesData?.nodes || {}) as Record<string, any>;
+      for (const nodeId of Object.keys(nodesResourcesObj)) {
+        const nodeData = nodesResourcesObj[nodeId];
+        if (nodeData?.recent_resources) {
+          transformedResources[nodeId] = nodeData.recent_resources.map((r: any) => ({
+            id: r.id,
+            type: (r.type === 'file' ? 'file' : 'link') as 'file' | 'link',
+            title: r.title || 'Untitled',
+          }));
+        }
+      }
+      setNodeResourcesData(transformedResources);
 
       // Load node reactions if user is logged in
       if (user && nodes.length > 0) {
@@ -1885,7 +1950,7 @@ export default function GoalDetailPage() {
         resources_count: summary.resources_count || 0,
         top_comments: summary.top_comments || [],
       });
-      setSelectedNodeUserReaction(summary.user_reaction || null);
+      setSelectedNodeUserReaction(summary.user_reactions?.[0] || null);
     } catch (err) {
       console.error("Failed to load node social summary:", err);
       // Set empty summary on error
@@ -1899,7 +1964,7 @@ export default function GoalDetailPage() {
     }
   };
 
-  // Direct-on-node reaction handler (Issue #49 - NEW UX)
+  // Direct-on-node reaction handler (Issue #49 - NEW UX with MULTIPLE reactions)
   const handleDirectNodeReaction = async (nodeId: string, reactionType: string) => {
     if (!user) {
       toast.error("Please log in to react");
@@ -1908,48 +1973,44 @@ export default function GoalDetailPage() {
 
     const stateKey = reactionType.replace(/-/g, '_') as keyof { encourage: number; celebrate: number; light_path: number; send_strength: number; mark_struggle: number };
     const currentData = nodeReactionData[nodeId];
-    const currentUserReaction = currentData?.userReaction;
+    const currentUserReactions = currentData?.userReactions || [];
 
-    // Optimistic update
+    // Optimistic update - support MULTIPLE reactions
     setNodeReactionData((prev) => {
       const current = prev[nodeId] || {
         reactionCounts: { encourage: 0, celebrate: 0, light_path: 0, send_strength: 0, mark_struggle: 0 },
-        userReaction: null,
+        userReactions: [],
       };
       const newCounts = { ...current.reactionCounts };
+      let newUserReactions = [...currentUserReactions];
 
-      if (currentUserReaction === reactionType) {
-        // Remove reaction
+      if (currentUserReactions.includes(reactionType)) {
+        // Remove this reaction (user clicked same reaction to toggle it off)
         newCounts[stateKey] = Math.max(0, newCounts[stateKey] - 1);
-        return {
-          ...prev,
-          [nodeId]: {
-            reactionCounts: newCounts,
-            userReaction: null,
-          },
-        };
+        newUserReactions = newUserReactions.filter(r => r !== reactionType);
       } else {
-        // Add or change reaction
-        if (currentUserReaction) {
-          const prevKey = currentUserReaction.replace(/-/g, '_') as keyof typeof newCounts;
-          newCounts[prevKey] = Math.max(0, newCounts[prevKey] - 1);
-        }
+        // Add this reaction (user can have multiple)
         newCounts[stateKey] = (newCounts[stateKey] || 0) + 1;
-        return {
-          ...prev,
-          [nodeId]: {
-            reactionCounts: newCounts,
-            userReaction: reactionType,
-          },
-        };
+        newUserReactions.push(reactionType);
       }
+
+      return {
+        ...prev,
+        [nodeId]: {
+          reactionCounts: newCounts,
+          userReactions: newUserReactions,
+        },
+      };
     });
 
     // Call API
     try {
-      if (currentUserReaction === reactionType) {
+      if (currentUserReactions.includes(reactionType)) {
+        // Remove this specific reaction
+        // Note: Current API removes all reactions, will need backend update for specific removal
         await api.removeReaction("node", nodeId);
       } else {
+        // Add this reaction
         await api.addReaction("node", nodeId, reactionType);
       }
     } catch (err) {
@@ -1959,7 +2020,7 @@ export default function GoalDetailPage() {
         ...prev,
         [nodeId]: currentData || {
           reactionCounts: { encourage: 0, celebrate: 0, light_path: 0, send_strength: 0, mark_struggle: 0 },
-          userReaction: null,
+          userReactions: [],
         },
       }));
       toast.error("Failed to update reaction");
@@ -2089,7 +2150,7 @@ export default function GoalDetailPage() {
           ...prev,
           [nodeId]: {
             ...currentData,
-            comment_count: (currentData.comment_count || 0) + 1,
+            comments_count: (currentData.comments_count || 0) + 1,
           },
         };
       });
@@ -2128,7 +2189,7 @@ export default function GoalDetailPage() {
           ...prev,
           [resourceDropNodeId]: {
             ...currentData,
-            resource_count: (currentData.resource_count || 0) + 1,
+            resources_count: (currentData.resources_count || 0) + 1,
           },
         };
       });
@@ -2498,6 +2559,21 @@ export default function GoalDetailPage() {
             nodeSocialData={nodeSocialData}
             nodeReactionData={nodeReactionData}
             onNodeReaction={user ? handleDirectNodeReaction : undefined}
+            canInteract={!!user}
+            nodeComments={nodeCommentsData}
+            nodeResources={nodeResourcesData}
+            onNodeCommentsClick={(nodeId) => {
+              const node = nodes.find(n => n.id === nodeId);
+              if (node) {
+                setCommentsModalNode({ id: nodeId, title: node.title });
+              }
+            }}
+            onNodeResourcesClick={(nodeId) => {
+              const node = nodes.find(n => n.id === nodeId);
+              if (node) {
+                setResourcesModalNode({ id: nodeId, title: node.title });
+              }
+            }}
           />
 
           {/* Unified Goal Page Header */}
@@ -2767,6 +2843,56 @@ export default function GoalDetailPage() {
         nodeTitle={resourceDropNodeTitle}
         isLoading={resourceDropLoading}
       />
+
+      {/* Node Comments Modal (new simplified modal) */}
+      {commentsModalNode && (
+        <NodeCommentsModal
+          isOpen={!!commentsModalNode}
+          onClose={() => setCommentsModalNode(null)}
+          nodeId={commentsModalNode.id}
+          nodeTitle={commentsModalNode.title}
+          reactionCounts={nodeReactionData[commentsModalNode.id]?.reactionCounts}
+          userReactions={nodeReactionData[commentsModalNode.id]?.userReactions}
+          onReaction={(type) => handleDirectNodeReaction(commentsModalNode.id, type)}
+          onDataChanged={() => {
+            // Update nodeSocialData to show new comment count immediately
+            setNodeSocialData((prev) => {
+              const currentData = prev[commentsModalNode.id] || {};
+              return {
+                ...prev,
+                [commentsModalNode.id]: {
+                  ...currentData,
+                  comments_count: (currentData.comments_count || 0) + 1,
+                },
+              };
+            });
+          }}
+        />
+      )}
+
+      {/* Node Resources Modal (new simplified modal) */}
+      {resourcesModalNode && (
+        <NodeResourcesModal
+          isOpen={!!resourcesModalNode}
+          onClose={() => setResourcesModalNode(null)}
+          nodeId={resourcesModalNode.id}
+          nodeTitle={resourcesModalNode.title}
+          isOwner={!!isOwner}
+          onDataChanged={() => {
+            // Update nodeSocialData to show new resource count immediately
+            setNodeSocialData((prev) => {
+              const currentData = prev[resourcesModalNode.id] || {};
+              return {
+                ...prev,
+                [resourcesModalNode.id]: {
+                  ...currentData,
+                  resources_count: (currentData.resources_count || 0) + 1,
+                },
+              };
+            });
+          }}
+        />
+      )}
 
       {/* Sacred Boost Modal */}
       <SacredBoostModal

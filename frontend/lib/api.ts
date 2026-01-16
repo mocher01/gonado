@@ -661,6 +661,23 @@ class ApiClient {
     return this.fetch(`/resource-drops/goals/${goalId}/summary`);
   }
 
+  async getGoalNodesResources(goalId: string, limit: number = 2): Promise<{
+    goal_id: string;
+    nodes: Record<string, {
+      node_id: string;
+      resources_count: number;
+      recent_resources: Array<{
+        id: string;
+        title: string;
+        type: string;
+        url: string;
+        dropper: string;
+      }>;
+    }>;
+  }> {
+    return this.fetch(`/resource-drops/goals/${goalId}/nodes?limit=${limit}`);
+  }
+
   // Time Capsules (Issue #72)
   /**
    * Create a time capsule on a node.
@@ -782,7 +799,7 @@ class ApiClient {
     // Legacy fields for backwards compatibility
     reaction_counts?: { fire: number; water: number; nature: number; lightning: number; magic: number };
     comment_count?: number;
-    user_reaction?: string | null;
+    user_reactions?: string[];  // Array of user's active reactions (supports multiple)
     recent_reactors?: Array<{
       id: string;
       username: string;

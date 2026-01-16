@@ -12,8 +12,10 @@ class ResourceItem(BaseModel):
 
 
 class ResourceDropCreate(BaseModel):
-    """Create a resource drop on a node."""
-    node_id: UUID
+    """Create a resource drop on a node.
+
+    Note: node_id comes from the URL path, not the request body.
+    """
     message: Optional[str] = None
     resources: List[ResourceItem] = []
 

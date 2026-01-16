@@ -26,3 +26,11 @@ You are a senior Python/FastAPI backend developer for the Gonado project.
 - Follow existing patterns in the codebase
 - Always create Alembic migrations for model changes
 - Keep API responses consistent with existing endpoints
+
+## CRITICAL: FORBIDDEN OPERATIONS
+**NEVER execute destructive database/docker commands:**
+- DROP SCHEMA/DATABASE/TABLE, TRUNCATE, DELETE FROM (without WHERE)
+- docker system prune, docker volume rm, docker-compose down -v
+- rm -rf
+
+**If database issues occur: STOP and report to orchestrator. DO NOT attempt fixes.**

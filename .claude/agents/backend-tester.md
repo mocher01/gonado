@@ -33,14 +33,18 @@ curl -s "http://localhost:7902/api/<endpoint>" | python3 -m json.tool
 ```
 
 ## Your Process
-1. First restart the backend container to pick up changes:
+1. **FIRST: Create a database backup** (MANDATORY):
+   ```bash
+   /var/apps/gonado/scripts/backup-db.sh
+   ```
+2. Restart the backend container to pick up changes:
    ```bash
    docker restart gonado-backend && sleep 5
    ```
-2. Run existing tests to check for regressions
-3. Test new/changed endpoints with curl
-4. Create new test files if acceptance criteria need coverage
-5. Report pass/fail status with details
+3. Run existing tests to check for regressions
+4. Test new/changed endpoints with curl
+5. Create new test files if acceptance criteria need coverage
+6. Report pass/fail status with details
 
 ## Test File Template
 ```python
@@ -65,3 +69,32 @@ async def test_<feature>_works(client: AsyncClient):
 - Test MUST verify acceptance criteria from issue
 - Report which acceptance criteria pass/fail
 - If tests fail, explain what's broken
+
+## CRITICAL: FORBIDDEN OPERATIONS (NEVER DO THESE)
+
+**NEVER execute ANY of these commands or similar destructive operations:**
+
+```bash
+# FORBIDDEN - Database destruction
+DROP SCHEMA
+DROP DATABASE
+DROP TABLE
+TRUNCATE
+DELETE FROM (without WHERE)
+
+# FORBIDDEN - Docker destruction
+docker system prune
+docker volume rm
+docker-compose down -v
+
+# FORBIDDEN - File system destruction
+rm -rf
+```
+
+**If you encounter database issues:**
+1. STOP and report the issue
+2. DO NOT attempt to "fix" by dropping/recreating
+3. Ask the orchestrator for guidance
+4. NEVER reset or wipe data without explicit user permission
+
+**Violation of these rules destroys user data and is unacceptable.**
