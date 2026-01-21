@@ -458,7 +458,7 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 space-y-1 text-sm text-slate-400 min-h-[2rem]">
                 {latestComments && latestComments.length > 0 ? (
-                  latestComments.slice(0, 2).map(c => (
+                  latestComments.slice(0, 3).map(c => (
                     <div key={c.id} className="truncate">
                       <span className="font-medium text-cyan-400">@{c.author}</span>: "{c.text}" <span className="text-slate-500">• {c.timeAgo}</span>
                     </div>
@@ -486,7 +486,7 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 flex flex-wrap gap-2 text-sm text-slate-400 min-h-[1.5rem]">
                 {latestResources && latestResources.length > 0 ? (
-                  latestResources.slice(0, 2).map(r => (
+                  latestResources.slice(0, 3).map(r => (
                     <span key={r.id} className="flex items-center gap-1">
                       {r.type === 'file' ? '📄' : '🔗'} <span className="truncate max-w-[120px]">{r.title}</span>
                     </span>

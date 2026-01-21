@@ -1,6 +1,7 @@
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
+from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -17,6 +18,15 @@ from app.models.user import User
 from app.services.notifications import notification_service
 
 router = APIRouter()
+
+
+def is_valid_url(url: str) -> bool:
+    """Validate URL to only allow http and https protocols."""
+    try:
+        result = urlparse(url)
+        return result.scheme in ('http', 'https') and bool(result.netloc)
+    except Exception:
+        return False
 
 
 def _build_drop_response(drop: ResourceDrop) -> ResourceDropResponse:
@@ -63,6 +73,15 @@ async def create_resource_drop(
     # Must have message or resources
     if not data.message and not data.resources:
         raise HTTPException(status_code=400, detail="Must provide a message or resources")
+
+    # Validate resource URLs
+    if data.resources:
+        for resource in data.resources:
+            if resource.url and not is_valid_url(resource.url):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid URL: {resource.url}. Only http:// and https:// URLs are allowed."
+                )
 
     drop = ResourceDrop(
         user_id=current_user.id,

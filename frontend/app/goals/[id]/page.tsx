@@ -1,10 +1,12 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import dynamic from "next/dynamic";
+import dynamicImport from "next/dynamic";
 import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -19,7 +21,7 @@ import { NodeCommentsModal } from "@/components/modals/NodeCommentsModal";
 import { NodeResourcesModal } from "@/components/modals/NodeResourcesModal";
 
 // Lazy load BPMNQuestMap for better performance
-const BPMNQuestMap = dynamic(
+const BPMNQuestMap = dynamicImport(
   () => import("@/components/quest-map/BPMNQuestMap").then((mod) => ({ default: mod.BPMNQuestMap })),
   {
     ssr: false,
@@ -1486,7 +1488,7 @@ export default function GoalDetailPage() {
         api.getGoalNodesSocialSummary(goalId).catch(() => ({ nodes: {} })),
         api.getStruggleStatus(goalId).catch(() => null),
         api.getGoalNodesComments(goalId, 3).catch(() => ({ nodes: {} })),
-        api.getGoalNodesResources(goalId, 2).catch(() => ({ nodes: {} })),
+        api.getGoalNodesResources(goalId, 3).catch(() => ({ nodes: {} })),
       ]);
 
       // Set node social data for the quest map
@@ -1838,13 +1840,16 @@ export default function GoalDetailPage() {
   const handleReaction = async (reactionType: ElementType) => {
     if (!user) return;
     try {
-      if (userReaction === reactionType) {
-        await api.removeReaction("goal", goalId);
+      // POST endpoint handles toggle (same reaction twice = remove)
+      const result = await api.addReaction("goal", goalId, reactionType);
+
+      if (result.removed) {
+        // Reaction was toggled off
         setReactions((prev) => ({ ...prev, [reactionType]: Math.max(0, prev[reactionType] - 1) }));
         setUserReaction(null);
         toast.success("Reaction removed!");
       } else {
-        await api.addReaction("goal", goalId, reactionType);
+        // New reaction added
         setReactions((prev) => {
           const updated = { ...prev };
           if (userReaction) updated[userReaction] = Math.max(0, updated[userReaction] - 1);
@@ -2003,16 +2008,9 @@ export default function GoalDetailPage() {
       };
     });
 
-    // Call API
+    // Call API - POST endpoint handles toggle (same reaction twice = remove)
     try {
-      if (currentUserReactions.includes(reactionType)) {
-        // Remove this specific reaction
-        // Note: Current API removes all reactions, will need backend update for specific removal
-        await api.removeReaction("node", nodeId);
-      } else {
-        // Add this reaction
-        await api.addReaction("node", nodeId, reactionType);
-      }
+      await api.addReaction("node", nodeId, reactionType);
     } catch (err) {
       console.error("Failed to toggle node reaction:", err);
       // Revert on error
@@ -2034,9 +2032,11 @@ export default function GoalDetailPage() {
       // API uses hyphens (light-path), but response uses underscores (light_path)
       const stateKey = reactionType.replace(/-/g, '_');
 
-      if (selectedNodeUserReaction === reactionType) {
-        // Remove reaction
-        await api.removeReaction("node", selectedNode.id);
+      // POST endpoint handles toggle (same reaction twice = remove)
+      const result = await api.addReaction("node", selectedNode.id, reactionType);
+
+      if (result.removed) {
+        // Reaction was toggled off
         setSelectedNodeUserReaction(null);
         setSelectedNodeSummary((prev: any) => {
           if (!prev) return prev;
@@ -2050,8 +2050,7 @@ export default function GoalDetailPage() {
         });
         toast.success("Reaction removed!");
       } else {
-        // Add/change reaction
-        await api.addReaction("node", selectedNode.id, reactionType);
+        // New reaction added
         setSelectedNodeSummary((prev: any) => {
           if (!prev) return prev;
           const newReactions = { ...prev.reactions };
