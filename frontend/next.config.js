@@ -4,6 +4,10 @@ const { withSentryConfig } = require("@sentry/nextjs");
 const nextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  typescript: {
+    tsconfigPath: './tsconfig.json',
+  },
+  staticPageGenerationTimeout: 0,
   images: {
     remotePatterns: [
       {
@@ -25,6 +29,11 @@ const nextConfig = {
         destination: `${backendUrl}/health`,
       },
     ];
+  },
+  onDemandEntries: {
+    // Reduce prerendering time by not rendering pages on demand
+    maxInactiveAge: 25 * 1000 * 60, // 25 minutes
+    pagesBufferLength: 2,
   },
   async headers() {
     return [

@@ -37,6 +37,9 @@ export default function NewGoalPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSequence, setLastSequence] = useState(0);
+  const [showVisibilitySelector, setShowVisibilitySelector] = useState(false);
+  const [createdGoalId, setCreatedGoalId] = useState<string | null>(null);
+  const [selectedVisibility, setSelectedVisibility] = useState<"public" | "private">("public");
 
   // Start or resume conversation
   useEffect(() => {
@@ -82,9 +85,10 @@ export default function NewGoalPage() {
         // Always check our specific conversation status
         const fullConv = await api.getConversation(conversation.id);
         if (fullConv?.status === "completed" && fullConv.goal_id) {
-          // Update state and redirect
+          // Update state and show visibility selector
           setConversation(prev => prev ? { ...prev, status: "completed", goal_id: fullConv.goal_id } : null);
-          router.push(`/goals/${fullConv.goal_id}`);
+          setCreatedGoalId(fullConv.goal_id);
+          setShowVisibilitySelector(true);
           return;
         }
       } catch (err) {
@@ -113,6 +117,21 @@ export default function NewGoalPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start conversation");
+    }
+  };
+
+  const handleVisibilitySubmit = async () => {
+    if (!createdGoalId) return;
+
+    setSending(true);
+    setError(null);
+
+    try {
+      await api.updateGoal(createdGoalId, { visibility: selectedVisibility });
+      router.push(`/goals/${createdGoalId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update visibility");
+      setSending(false);
     }
   };
 
@@ -180,6 +199,89 @@ export default function NewGoalPage() {
   }
 
   if (!user) return null;
+
+  // Show visibility selector modal
+  if (showVisibilitySelector && createdGoalId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full bg-slate-800/90 backdrop-blur-lg rounded-2xl border border-white/10 p-8"
+        >
+          <div className="text-center mb-6">
+            <div className="text-4xl mb-3">✨</div>
+            <h2 className="text-2xl font-bold text-white mb-2">Quest Created!</h2>
+            <p className="text-gray-400">Who should see your quest?</p>
+          </div>
+
+          <div className="space-y-3 mb-6">
+            <button
+              onClick={() => setSelectedVisibility("public")}
+              className={`w-full p-4 rounded-xl border-2 transition-all ${
+                selectedVisibility === "public"
+                  ? "border-emerald-500 bg-emerald-500/20"
+                  : "border-white/10 bg-white/5 hover:border-white/20"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  selectedVisibility === "public" ? "bg-emerald-500/30" : "bg-white/10"
+                }`}>
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold text-white">Public</div>
+                  <div className="text-sm text-gray-400">Anyone can see and cheer you on</div>
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setSelectedVisibility("private")}
+              className={`w-full p-4 rounded-xl border-2 transition-all ${
+                selectedVisibility === "private"
+                  ? "border-gray-500 bg-gray-500/20"
+                  : "border-white/10 bg-white/5 hover:border-white/20"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  selectedVisibility === "private" ? "bg-gray-500/30" : "bg-white/10"
+                }`}>
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold text-white">Private</div>
+                  <div className="text-sm text-gray-400">Only you can see this quest</div>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
+          <motion.button
+            onClick={handleVisibilitySubmit}
+            disabled={sending}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
+          >
+            {sending ? "Setting up..." : "Continue to Quest Map"}
+          </motion.button>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">

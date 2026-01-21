@@ -57,6 +57,7 @@ class PlanData(BaseModel):
     category: str
     world_theme: str
     target_date: Optional[str] = None
+    visibility: str = "public"  # public, private, shared, friends
     nodes: List[dict]
 
 
@@ -475,7 +476,7 @@ async def finalize_conversation(
             world_theme=plan.world_theme,
             target_date=target_date,
             status="active",
-            visibility="public"
+            visibility=plan.visibility
         )
         db.add(goal)
         await db.flush()
