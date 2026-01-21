@@ -205,7 +205,7 @@ class ApiClient {
 
   async updateGoal(id: string, data: Partial<Goal>): Promise<Goal> {
     return this.fetch<Goal>(`/goals/${id}`, {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(data),
     });
   }
