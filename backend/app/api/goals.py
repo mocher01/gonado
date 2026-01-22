@@ -9,7 +9,7 @@ from datetime import datetime
 from app.schemas.goal import GoalCreate, GoalUpdate, GoalResponse, GoalListResponse, MoodUpdate, StruggleStatusResponse, GoalDiscoveryResponse, GoalDiscoveryListResponse, GoalOwnerInfo
 from datetime import timedelta
 from app.models.interaction import InteractionType
-from app.schemas.node import NodeResponse
+from app.schemas.node import NodeResponse, NodeCreate
 from app.schemas.follow import TravelerResponse, TravelersListResponse
 from app.models.goal import Goal, GoalVisibility, GoalStatus
 from app.models.goal_share import GoalShare, ShareStatus
@@ -506,6 +506,30 @@ async def get_goal_nodes(
         select(Node).where(Node.goal_id == goal_id).order_by(Node.order)
     )
     return result.scalars().all()
+
+
+@router.post("/{goal_id}/nodes", response_model=NodeResponse, status_code=status.HTTP_201_CREATED)
+async def create_node_for_goal(
+    goal_id: UUID,
+    node_data: NodeCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new node for a goal."""
+    result = await db.execute(
+        select(Goal).where(Goal.id == goal_id, Goal.user_id == current_user.id)
+    )
+    goal = result.scalar_one_or_none()
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    node = Node(
+        goal_id=goal_id,
+        **node_data.model_dump()
+    )
+    db.add(node)
+    await db.flush()
+    return node
 
 
 @router.put("/{goal_id}", response_model=GoalResponse)
