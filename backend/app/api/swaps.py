@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.goal import Goal
 from app.models.node import Node
 from app.models.follow import Follow, FollowType
+from app.services.notifications import notification_service
 
 router = APIRouter()
 
@@ -72,6 +73,28 @@ async def propose_swap(
     )
     db.add(swap)
     await db.flush()
+
+    # Notify the receiver
+    proposer_name = current_user.display_name or current_user.username
+    notification_title = f"{proposer_name} wants to start a support swap with you!"
+    notification_message = f"{proposer_name} proposed a swap to work together on your goals"
+    if swap_data.message:
+        notification_message += f": \"{swap_data.message}\""
+
+    await notification_service.create_notification(
+        db=db,
+        user_id=swap_data.receiver_id,
+        notification_type="swap_proposed",
+        title=notification_title,
+        message=notification_message,
+        data={
+            "swap_id": str(swap.id),
+            "proposer_id": str(current_user.id),
+            "proposer_username": current_user.username,
+            "proposer_goal_id": str(swap_data.proposer_goal_id)
+        }
+    )
+
     return swap
 
 
@@ -152,6 +175,25 @@ async def accept_swap(
     swap.receiver_node_id = accept_data.receiver_node_id
     swap.status = SwapStatus.ACCEPTED
 
+    # Notify the proposer
+    receiver_name = current_user.display_name or current_user.username
+    notification_title = f"{receiver_name} accepted your swap request!"
+    notification_message = f"{receiver_name} accepted your support swap. You can now work together on your goals!"
+
+    await notification_service.create_notification(
+        db=db,
+        user_id=swap.proposer_id,
+        notification_type="swap_accepted",
+        title=notification_title,
+        message=notification_message,
+        data={
+            "swap_id": str(swap.id),
+            "receiver_id": str(current_user.id),
+            "receiver_username": current_user.username,
+            "receiver_goal_id": str(accept_data.receiver_goal_id)
+        }
+    )
+
     # Create mutual Follow relationships for both goals
     # Proposer follows receiver's goal
     proposer_follow = await db.execute(
@@ -209,6 +251,25 @@ async def decline_swap(
         raise HTTPException(status_code=404, detail="Swap not found or cannot be declined")
 
     swap.status = SwapStatus.DECLINED
+
+    # Notify the proposer
+    receiver_name = current_user.display_name or current_user.username
+    notification_title = f"{receiver_name} declined your swap request"
+    notification_message = f"{receiver_name} declined your support swap proposal"
+
+    await notification_service.create_notification(
+        db=db,
+        user_id=swap.proposer_id,
+        notification_type="swap_declined",
+        title=notification_title,
+        message=notification_message,
+        data={
+            "swap_id": str(swap.id),
+            "receiver_id": str(current_user.id),
+            "receiver_username": current_user.username
+        }
+    )
+
     await db.flush()
     return swap
 

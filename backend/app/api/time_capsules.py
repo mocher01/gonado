@@ -14,6 +14,7 @@ from app.models.time_capsule import TimeCapsule, UnlockType
 from app.models.node import Node
 from app.models.goal import Goal
 from app.models.user import User
+from app.services.notifications import notification_service
 
 router = APIRouter()
 
@@ -293,5 +294,16 @@ async def unlock_time_capsule(
     capsule.is_unlocked = True
     capsule.unlocked_at = datetime.utcnow()
     await db.flush()
+
+    # Notify the goal owner that a capsule was unlocked
+    sender_name = capsule.sender.display_name or capsule.sender.username
+    await notification_service.create_notification(
+        db=db,
+        user_id=goal.user_id,
+        notification_type="capsule_unlocked",
+        title="A time capsule has been unlocked!",
+        message=f"{sender_name} left you a message...",
+        data={"capsule_id": str(capsule.id), "node_id": str(capsule.node_id)}
+    )
 
     return _build_capsule_response(capsule, current_user, goal.user_id)

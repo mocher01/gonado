@@ -10,6 +10,7 @@ from app.middleware.security import (
     setup_rate_limiting,
     SecurityHeadersMiddleware,
     InputValidationMiddleware,
+    CSRFMiddleware,
 )
 import sentry_sdk
 
@@ -74,6 +75,9 @@ app = FastAPI(
 
 # Security middleware - rate limiting
 setup_rate_limiting(app)
+
+# CSRF protection (add before CORS)
+app.add_middleware(CSRFMiddleware, secret_key=settings.CSRF_SECRET)
 
 # Security headers
 app.add_middleware(SecurityHeadersMiddleware)
