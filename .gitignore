@@ -40,6 +40,8 @@ minio_data/
 .coverage
 htmlcov/
 .pytest_cache/
+test-results/
+playwright-report/
 
 # Misc
 *.bak
