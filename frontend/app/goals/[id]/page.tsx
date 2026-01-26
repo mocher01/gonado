@@ -11,6 +11,7 @@ import dynamicImport from "next/dynamic";
 import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useReactionPolling } from "@/hooks/useReactionPolling";
 import { api } from "@/lib/api";
 import { analytics } from "@/lib/analytics";
 import { Card } from "@/components/ui/Card";
@@ -1426,6 +1427,9 @@ export default function GoalDetailPage() {
   // Struggle detection state (Issue #68)
   const [struggleStatus, setStruggleStatus] = useState<StruggleStatus | null>(null);
 
+  // Reaction polling state (Issue #39)
+  const [socialDataLoaded, setSocialDataLoaded] = useState(false);
+
   const goalId = params.id as string;
   const isOwner = user && goal && user.id === goal.user_id;
   const isPublic = goal?.visibility === "public";
@@ -1695,10 +1699,32 @@ export default function GoalDetailPage() {
           }
         } catch { /* ignore */ }
       }
+
+      // Mark social data as loaded to enable polling (Issue #39)
+      setSocialDataLoaded(true);
     } catch (err) {
       console.error("Failed to load social data:", err);
     }
   }, [goalId, user, nodes, loadNodeReactions]);
+
+  // Real-time reaction polling (Issue #39)
+  // Poll for updates after initial social data is loaded, only when:
+  // - Goal is public
+  // - Initial social data has loaded
+  // - No modals/popups are open (to avoid conflicts with user interactions)
+  const pollingEnabled = isPublic && socialDataLoaded && !showNodePopup && !showCommentModal && !commentsModalNode && !resourcesModalNode && !showResourceDropModal;
+
+  useReactionPolling({
+    goalId: isPublic ? goalId : null,
+    interval: 5000, // Poll every 5 seconds
+    enabled: pollingEnabled,
+    onUpdate: useCallback((data: any) => {
+      // Update nodeSocialData with new reaction counts
+      if (data?.nodes) {
+        setNodeSocialData(data.nodes);
+      }
+    }, []),
+  });
 
   // Goal management handlers
   const handleGeneratePlan = async () => {
