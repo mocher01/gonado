@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, EmailStr
 from app.database import get_db
 from app.services.auth import AuthService
 from app.schemas.user import UserCreate, UserResponse
-from app.middleware.security import limiter
+from app.middleware.security import limiter, CSRFMiddleware
+from app.config import settings
+import secrets
 
 router = APIRouter()
 
@@ -22,6 +24,10 @@ class TokenResponse(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+
+class CSRFTokenResponse(BaseModel):
+    csrf_token: str
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -108,3 +114,29 @@ async def refresh_token(
         access_token=AuthService.create_access_token(user.id),
         refresh_token=AuthService.create_refresh_token(user.id)
     )
+
+
+@router.get("/csrf", response_model=CSRFTokenResponse)
+async def get_csrf_token(response: Response):
+    """
+    Generate and return a CSRF token.
+
+    This endpoint sets a csrf_token cookie and returns the token in the response body.
+    The frontend should store this token and send it in the X-CSRF-Token header
+    for all state-changing requests (POST, PUT, PATCH, DELETE).
+    """
+    # Generate a new CSRF token
+    csrf_token = secrets.token_urlsafe(32)
+
+    # Set the CSRF token as a cookie
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf_token,
+        httponly=settings.CSRF_COOKIE_HTTPONLY,
+        secure=settings.CSRF_COOKIE_SECURE,
+        samesite=settings.CSRF_COOKIE_SAMESITE,
+        max_age=86400,  # 24 hours
+    )
+
+    # Return the token in the response body so frontend can include it in headers
+    return CSRFTokenResponse(csrf_token=csrf_token)

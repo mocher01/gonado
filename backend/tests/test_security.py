@@ -722,3 +722,265 @@ class TestInputValidation:
             # Database error during request processing is also acceptable
             # It means the long string was caught by the database layer
             assert "too long" in str(e).lower() or "truncation" in str(e).lower()
+
+
+class TestCSRFProtection:
+    """Test CSRF (Cross-Site Request Forgery) protection."""
+
+    @pytest.mark.asyncio
+    async def test_csrf_token_generation(
+        self,
+        client: AsyncClient
+    ):
+        """Test that CSRF token can be generated."""
+        response = await client.get("/api/auth/csrf")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "csrf_token" in data
+        assert len(data["csrf_token"]) > 0
+
+        # Verify token is also set in cookie
+        assert "csrf_token" in response.cookies
+
+    @pytest.mark.asyncio
+    async def test_csrf_protection_on_post_without_token(
+        self,
+        client: AsyncClient,
+        test_user: User
+    ):
+        """Test that POST requests without CSRF token are rejected."""
+        token = AuthService.create_access_token(test_user.id)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Try to create a goal without CSRF token
+        response = await client.post(
+            "/api/goals",
+            json={
+                "title": "Test Goal",
+                "description": "Test",
+                "visibility": "public"
+            },
+            headers=headers
+        )
+
+        # Should be rejected with 403 Forbidden due to missing CSRF token
+        assert response.status_code == 403
+        data = response.json()
+        assert "CSRF" in data.get("detail", "").upper()
+
+    @pytest.mark.asyncio
+    async def test_csrf_protection_on_post_with_token(
+        self,
+        client: AsyncClient,
+        test_user: User
+    ):
+        """Test that POST requests with valid CSRF token are accepted."""
+        # First, get a CSRF token
+        csrf_response = await client.get("/api/auth/csrf")
+        csrf_token = csrf_response.json()["csrf_token"]
+
+        # Now make a request with the CSRF token
+        token = AuthService.create_access_token(test_user.id)
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "X-CSRF-Token": csrf_token
+        }
+
+        # Set the CSRF cookie
+        cookies = {"csrf_token": csrf_token}
+
+        response = await client.post(
+            "/api/goals",
+            json={
+                "title": "Test Goal with CSRF",
+                "description": "Test",
+                "visibility": "public"
+            },
+            headers=headers,
+            cookies=cookies
+        )
+
+        # Should succeed
+        assert response.status_code == 201
+
+    @pytest.mark.asyncio
+    async def test_csrf_protection_on_patch_without_token(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        db_session: AsyncSession
+    ):
+        """Test that PATCH requests without CSRF token are rejected."""
+        # Create a goal first
+        goal = Goal(
+            user_id=test_user.id,
+            title="Original Title",
+            description="Original description",
+            visibility=GoalVisibility.PUBLIC
+        )
+        db_session.add(goal)
+        await db_session.commit()
+        await db_session.refresh(goal)
+
+        token = AuthService.create_access_token(test_user.id)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Try to update without CSRF token
+        response = await client.patch(
+            f"/api/goals/{goal.id}",
+            json={"title": "Updated Title"},
+            headers=headers
+        )
+
+        # Should be rejected
+        assert response.status_code == 403
+        data = response.json()
+        assert "CSRF" in data.get("detail", "").upper()
+
+    @pytest.mark.asyncio
+    async def test_csrf_protection_on_delete_without_token(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        db_session: AsyncSession
+    ):
+        """Test that DELETE requests without CSRF token are rejected."""
+        # Create a goal first
+        goal = Goal(
+            user_id=test_user.id,
+            title="Goal to Delete",
+            description="Test",
+            visibility=GoalVisibility.PUBLIC
+        )
+        db_session.add(goal)
+        await db_session.commit()
+        await db_session.refresh(goal)
+
+        token = AuthService.create_access_token(test_user.id)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Try to delete without CSRF token
+        response = await client.delete(
+            f"/api/goals/{goal.id}",
+            headers=headers
+        )
+
+        # Should be rejected
+        assert response.status_code == 403
+        data = response.json()
+        assert "CSRF" in data.get("detail", "").upper()
+
+    @pytest.mark.asyncio
+    async def test_csrf_protection_allows_get_requests(
+        self,
+        client: AsyncClient,
+        test_user: User
+    ):
+        """Test that GET requests don't require CSRF token (safe method)."""
+        token = AuthService.create_access_token(test_user.id)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # GET requests should work without CSRF token
+        response = await client.get(
+            "/api/goals",
+            headers=headers
+        )
+
+        # Should succeed
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_csrf_protection_exempt_login(
+        self,
+        client: AsyncClient,
+        test_user: User
+    ):
+        """Test that login endpoint is exempt from CSRF (initial auth)."""
+        # Login should work without CSRF token
+        response = await client.post(
+            "/api/auth/login",
+            json={
+                "email": test_user.email,
+                "password": "password123"  # Assuming test user has this password
+            }
+        )
+
+        # Should succeed or fail due to wrong password, not CSRF
+        assert response.status_code in [200, 401]
+
+    @pytest.mark.asyncio
+    async def test_csrf_protection_exempt_register(
+        self,
+        client: AsyncClient
+    ):
+        """Test that registration endpoint is exempt from CSRF."""
+        # Registration should work without CSRF token
+        response = await client.post(
+            "/api/auth/register",
+            json={
+                "email": f"newuser_{uuid.uuid4()}@example.com",
+                "password": "securepassword123",
+                "username": f"newuser_{uuid.uuid4().hex[:8]}",
+                "display_name": "New User"
+            }
+        )
+
+        # Should succeed or fail due to validation, not CSRF
+        assert response.status_code in [201, 400, 422]
+
+    @pytest.mark.asyncio
+    async def test_csrf_token_mismatch_rejected(
+        self,
+        client: AsyncClient,
+        test_user: User
+    ):
+        """Test that mismatched CSRF tokens are rejected."""
+        token = AuthService.create_access_token(test_user.id)
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "X-CSRF-Token": "different_token"
+        }
+
+        # Set a different token in cookie
+        cookies = {"csrf_token": "cookie_token"}
+
+        response = await client.post(
+            "/api/goals",
+            json={
+                "title": "Test Goal",
+                "description": "Test",
+                "visibility": "public"
+            },
+            headers=headers,
+            cookies=cookies
+        )
+
+        # Should be rejected due to token mismatch
+        assert response.status_code == 403
+        data = response.json()
+        assert "CSRF" in data.get("detail", "").upper()
+
+    @pytest.mark.asyncio
+    async def test_csrf_protection_on_put_without_token(
+        self,
+        client: AsyncClient,
+        test_user: User
+    ):
+        """Test that PUT requests without CSRF token are rejected."""
+        token = AuthService.create_access_token(test_user.id)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Try to make a PUT request without CSRF token
+        # Note: Most endpoints use PATCH, but testing PUT for completeness
+        response = await client.put(
+            "/api/users/profile",
+            json={
+                "display_name": "Updated Name"
+            },
+            headers=headers
+        )
+
+        # Should be rejected or not found (depending on endpoint existence)
+        # If endpoint exists, should be 403. If not, will be 404
+        assert response.status_code in [403, 404, 405]

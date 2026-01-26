@@ -1,4 +1,4 @@
-"""Security middleware for rate limiting, headers, and request validation."""
+"""Security middleware for rate limiting, headers, request validation, and CSRF protection."""
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -7,6 +7,9 @@ from starlette.requests import Request
 from starlette.responses import Response
 from fastapi import FastAPI
 import re
+import hmac
+import hashlib
+import secrets
 from typing import Callable
 
 # Rate limiter instance - use IP address for identification
@@ -109,3 +112,76 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
             if pattern.search(text):
                 return True
         return False
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    """CSRF protection middleware using cookie-to-header token validation."""
+
+    # Methods that require CSRF protection
+    PROTECTED_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+    # Endpoints that don't require CSRF (public APIs, read-only)
+    EXEMPT_PATHS = {
+        "/api/auth/csrf",  # CSRF token generation endpoint
+        "/api/auth/login",  # Initial login doesn't have token yet
+        "/api/auth/register",  # Registration doesn't have token yet
+        "/health",  # Health check
+        "/docs",  # API docs
+        "/openapi.json",  # OpenAPI spec
+    }
+
+    def __init__(self, app, secret_key: str):
+        super().__init__(app)
+        self.secret_key = secret_key.encode() if isinstance(secret_key, str) else secret_key
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Skip CSRF check for safe methods (GET, HEAD, OPTIONS)
+        if request.method not in self.PROTECTED_METHODS:
+            return await call_next(request)
+
+        # Skip CSRF check for exempt paths
+        if any(request.url.path.startswith(path) for path in self.EXEMPT_PATHS):
+            return await call_next(request)
+
+        # Skip CSRF check for WebSocket connections
+        if request.url.path.startswith("/ws/"):
+            return await call_next(request)
+
+        # Get CSRF token from cookie
+        csrf_cookie = request.cookies.get("csrf_token")
+
+        # Get CSRF token from header
+        csrf_header = request.headers.get("X-CSRF-Token")
+
+        # Validate CSRF token
+        if not csrf_cookie or not csrf_header:
+            return Response(
+                content='{"detail":"CSRF token missing"}',
+                status_code=403,
+                media_type="application/json"
+            )
+
+        if not self._validate_csrf_token(csrf_cookie, csrf_header):
+            return Response(
+                content='{"detail":"CSRF token invalid"}',
+                status_code=403,
+                media_type="application/json"
+            )
+
+        return await call_next(request)
+
+    def _validate_csrf_token(self, cookie_token: str, header_token: str) -> bool:
+        """Validate that the CSRF token from cookie matches the header token."""
+        # For basic implementation, we use double-submit cookie pattern
+        # Cookie token and header token should match and be valid
+        if not cookie_token or not header_token:
+            return False
+
+        # Constant-time comparison to prevent timing attacks
+        return hmac.compare_digest(cookie_token, header_token)
+
+    def generate_csrf_token(self) -> str:
+        """Generate a new CSRF token."""
+        # Generate a random token
+        token = secrets.token_urlsafe(32)
+        return token

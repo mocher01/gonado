@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # CSRF
+    CSRF_SECRET: str = "your-csrf-secret-key-change-in-production"
+    CSRF_COOKIE_SECURE: bool = False  # Set to True in production with HTTPS
+    CSRF_COOKIE_HTTPONLY: bool = False  # Must be False so JavaScript can read it
+    CSRF_COOKIE_SAMESITE: str = "lax"  # "strict", "lax", or "none"
+
     # MinIO
     MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"
