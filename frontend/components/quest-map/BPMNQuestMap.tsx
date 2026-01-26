@@ -42,6 +42,12 @@ import { GatewayNode } from "./nodes/GatewayNode";
 import { MilestoneNode } from "./nodes/MilestoneNode";
 import { QuestEdge } from "./edges/QuestEdge";
 
+// Seeded random to avoid hydration mismatch (server/client produce same values)
+const seededRandom = (seed: number) => {
+  const x = Math.sin(seed * 9999) * 10000;
+  return x - Math.floor(x);
+};
+
 // Social data summary for a node
 interface NodeSocialSummary {
   reactions_total: number;
@@ -95,6 +101,9 @@ interface BPMNQuestMapProps {
   onNodeCommentsClick?: (nodeId: string) => void;
   onNodeResourcesClick?: (nodeId: string) => void;
   canInteract?: boolean;  // false for anonymous users
+  // Time capsules
+  nodeCapsules?: Record<string, number>;  // nodeId -> capsule count
+  onNodeCapsulesClick?: (nodeId: string) => void;
 }
 
 const THEME_CONFIGS: Record<
@@ -209,6 +218,8 @@ function BPMNQuestMapInner({
   nodeResources,
   onNodeCommentsClick,
   onNodeResourcesClick,
+  nodeCapsules,
+  onNodeCapsulesClick,
   canInteract = true,
   theme,
 }: BPMNQuestMapProps & { theme: typeof THEME_CONFIGS.mountain }) {
@@ -397,6 +408,11 @@ function BPMNQuestMapInner({
               onResourcesClick: onNodeResourcesClick
                 ? () => onNodeResourcesClick(parallelNode.id)
                 : undefined,
+              // Time Capsules
+              capsulesCount: nodeCapsules?.[parallelNode.id] || 0,
+              onCapsulesClick: onNodeCapsulesClick
+                ? () => onNodeCapsulesClick(parallelNode.id)
+                : undefined,
               // Permissions
               canInteract,
               isOwner,
@@ -520,6 +536,11 @@ function BPMNQuestMapInner({
             resourcesCount: nodeSocialData?.[node.id]?.resources_count || 0,
             onResourcesClick: onNodeResourcesClick
               ? () => onNodeResourcesClick(node.id)
+              : undefined,
+            // Time Capsules
+            capsulesCount: nodeCapsules?.[node.id] || 0,
+            onCapsulesClick: onNodeCapsulesClick
+              ? () => onNodeCapsulesClick(node.id)
               : undefined,
             // Permissions
             canInteract,
@@ -956,18 +977,18 @@ export function BPMNQuestMap(props: BPMNQuestMapProps) {
             key={i}
             className="absolute text-2xl opacity-20"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${seededRandom(i) * 100}%`,
+              top: `${seededRandom(i + 100) * 100}%`,
             }}
             animate={{
               y: [0, -30, 0],
-              x: [0, Math.random() * 20 - 10, 0],
+              x: [0, seededRandom(i + 200) * 20 - 10, 0],
               opacity: [0.1, 0.3, 0.1],
             }}
             transition={{
-              duration: 4 + Math.random() * 4,
+              duration: 4 + seededRandom(i + 300) * 4,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: seededRandom(i + 400) * 2,
             }}
           >
             {theme.particles[i % theme.particles.length]}

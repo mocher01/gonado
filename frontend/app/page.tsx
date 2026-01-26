@@ -4,6 +4,13 @@ export const dynamic = "force-dynamic";
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useMemo } from "react";
+
+// Seeded random to avoid hydration mismatch (server/client produce same values)
+const seededRandom = (seed: number) => {
+  const x = Math.sin(seed * 9999) * 10000;
+  return x - Math.floor(x);
+};
 
 export default function Home() {
   return (
@@ -137,18 +144,18 @@ export default function Home() {
             key={i}
             className="absolute w-2 h-2 bg-primary-500/30 rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${seededRandom(i) * 100}%`,
+              top: `${seededRandom(i + 100) * 100}%`,
             }}
             animate={{
-              y: [0, Math.random() * -200],
+              y: [0, seededRandom(i + 200) * -200],
               opacity: [0.3, 0.8, 0.3],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: 3 + seededRandom(i + 300) * 2,
               repeat: Infinity,
               repeatType: "reverse",
-              delay: Math.random() * 2,
+              delay: seededRandom(i + 400) * 2,
             }}
           />
         ))}

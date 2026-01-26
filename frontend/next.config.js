@@ -2,8 +2,14 @@ const { withSentryConfig } = require("@sentry/nextjs");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
   reactStrictMode: true,
+  // Allow dev server access from external IP (fixes 404 for _next/* resources)
+  // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+  allowedDevOrigins: [
+    'http://162.55.213.90:7901',
+    'http://localhost:7901',
+    'http://localhost:3000',
+  ],
   typescript: {
     tsconfigPath: './tsconfig.json',
   },
@@ -13,6 +19,10 @@ const nextConfig = {
       {
         protocol: "http",
         hostname: "localhost",
+      },
+      {
+        protocol: "http",
+        hostname: "162.55.213.90",
       },
     ],
   },
@@ -77,7 +87,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: http://localhost:* https:",
               "font-src 'self' data:",
-              "connect-src 'self' http://localhost:* ws://localhost:* wss://*",
+              "connect-src 'self' http://localhost:* http://162.55.213.90:* ws://localhost:* ws://162.55.213.90:* wss://*",
               "frame-ancestors 'self'",
               "base-uri 'self'",
               "form-action 'self'",

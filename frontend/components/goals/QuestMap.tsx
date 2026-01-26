@@ -4,6 +4,12 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Node } from "@/types";
 
+// Seeded random to avoid hydration mismatch (server/client produce same values)
+const seededRandom = (seed: number) => {
+  const x = Math.sin(seed * 9999) * 10000;
+  return x - Math.floor(x);
+};
+
 interface QuestMapProps {
   nodes: Node[];
   worldTheme: string;
@@ -199,18 +205,18 @@ export function QuestMap({ nodes, worldTheme, goalTitle, onCompleteNode }: Quest
             key={i}
             className="absolute text-2xl opacity-20"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${seededRandom(i) * 100}%`,
+              top: `${seededRandom(i + 100) * 100}%`,
             }}
             animate={{
               y: [0, -30, 0],
-              x: [0, Math.random() * 20 - 10, 0],
+              x: [0, seededRandom(i + 200) * 20 - 10, 0],
               opacity: [0.1, 0.3, 0.1],
             }}
             transition={{
-              duration: 4 + Math.random() * 4,
+              duration: 4 + seededRandom(i + 300) * 4,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: seededRandom(i + 400) * 2,
             }}
           >
             {theme.particles[i % theme.particles.length]}
