@@ -11,7 +11,10 @@ from app.schemas.interaction import (
 )
 from app.models.interaction import Interaction, InteractionType, TargetType, ReactionType
 from app.models.user import User
+from app.models.goal import Goal
+from app.models.node import Node
 from app.services.gamification import gamification_service, XP_REWARDS
+from app.services.notifications import notification_service
 
 router = APIRouter()
 
@@ -85,6 +88,48 @@ async def create_reaction(
     db.add(interaction)
     await db.commit()
     await db.refresh(interaction)
+
+    # Send notification to target owner
+    owner_id = None
+    if reaction_data.target_type == "goal":
+        # Get goal owner
+        result = await db.execute(
+            select(Goal).where(Goal.id == reaction_data.target_id)
+        )
+        goal = result.scalar_one_or_none()
+        if goal:
+            owner_id = goal.user_id
+    elif reaction_data.target_type == "node":
+        # Get node's goal, then get goal owner
+        result = await db.execute(
+            select(Node).where(Node.id == reaction_data.target_id)
+        )
+        node = result.scalar_one_or_none()
+        if node:
+            result = await db.execute(
+                select(Goal).where(Goal.id == node.goal_id)
+            )
+            goal = result.scalar_one_or_none()
+            if goal:
+                owner_id = goal.user_id
+
+    # Only notify if we found an owner and it's not a self-reaction
+    if owner_id and owner_id != current_user.id:
+        reactor_name = current_user.display_name or current_user.username
+        await notification_service.create_notification(
+            db=db,
+            user_id=owner_id,
+            notification_type="reaction",
+            title=f"{reactor_name} reacted to your {reaction_data.target_type}!",
+            message=f"Received a {reaction_type_value} reaction",
+            data={
+                "target_type": reaction_data.target_type,
+                "target_id": str(reaction_data.target_id),
+                "reaction_type": reaction_type_value,
+                "reactor_id": str(current_user.id),
+            }
+        )
+
     return interaction
 
 

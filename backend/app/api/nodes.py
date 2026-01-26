@@ -287,16 +287,34 @@ async def complete_node(
 
     # Unlock time capsules tied to this node (Issue #72)
     capsules_result = await db.execute(
-        select(TimeCapsule).where(
+        select(TimeCapsule)
+        .options(selectinload(TimeCapsule.sender))
+        .where(
             TimeCapsule.node_id == node_id,
             TimeCapsule.unlock_type == UnlockType.NODE_COMPLETE,
             TimeCapsule.is_unlocked == False
         )
     )
     capsules_to_unlock = capsules_result.scalars().all()
+
+    # Get goal for notifications
+    goal_result = await db.execute(select(Goal).where(Goal.id == node.goal_id))
+    goal = goal_result.scalar_one()
+
     for capsule in capsules_to_unlock:
         capsule.is_unlocked = True
         capsule.unlocked_at = datetime.utcnow()
+
+        # Notify the goal owner that a capsule was unlocked
+        sender_name = capsule.sender.display_name or capsule.sender.username
+        await notification_service.create_notification(
+            db=db,
+            user_id=goal.user_id,
+            notification_type="capsule_unlocked",
+            title="A time capsule has been unlocked!",
+            message=f"{sender_name} left you a message...",
+            data={"capsule_id": str(capsule.id), "node_id": str(node_id)}
+        )
 
     # Unlock dependent nodes (Issue #63 - improved logic)
     # Find all nodes that depend on this completed node

@@ -29,9 +29,12 @@ minio==7.2.3
 # Security
 slowapi==0.1.9
 pip-audit==2.7.0
+urllib3>=2.6.3
+filelock>=3.20.3
+ecdsa>=0.19.2
 
 # Monitoring
-sentry-sdk[fastapi]==1.40.0
+sentry-sdk[fastapi]>=1.45.1
 
 # Utilities
 python-dateutil==2.8.2
