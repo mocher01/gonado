@@ -4,6 +4,7 @@ import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import { motion } from "framer-motion";
 import { DifficultyIndicator } from "../DifficultySelector";
+import { CapsuleBadge } from "@/components/capsule";
 
 /**
  * TaskNode - Quest Map Step Component
@@ -83,6 +84,10 @@ interface TaskNodeData {
   resourcesCount?: number;
   onResourcesClick?: () => void;
 
+  // Time Capsules
+  capsulesCount?: number;
+  onCapsulesClick?: () => void;
+
   // Permissions
   canInteract?: boolean;  // false for anonymous users
   isOwner?: boolean;  // true for owner/admin
@@ -155,6 +160,8 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
     latestResources,
     resourcesCount = 0,
     onResourcesClick,
+    capsulesCount = 0,
+    onCapsulesClick,
     canInteract = true,
     isOwner = false,
     themeColors,
@@ -414,7 +421,7 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
 
           {/* Reactions Bar - Centered with tooltips (Issue #49) */}
           <div className="mt-4 pt-3 border-t border-white/5">
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-nowrap items-center justify-center gap-2">
               {[
                 { type: 'encourage', emoji: '👊', label: 'Keep going!', activeClass: 'bg-emerald-500/20 border-emerald-500/50 shadow-emerald-500/20', textClass: 'text-emerald-300' },
                 { type: 'celebrate', emoji: '🎉', label: 'Amazing progress!', activeClass: 'bg-amber-500/20 border-amber-500/50 shadow-amber-500/20', textClass: 'text-amber-300' },
@@ -433,7 +440,7 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
                       e.stopPropagation();
                       handleReactionClick(reaction.type);
                     }}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-all border-2 ${
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm transition-all border-2 ${
                       isActive
                         ? `${reaction.activeClass} shadow-lg`
                         : "bg-white/5 hover:bg-white/10 border-transparent hover:border-white/20"
@@ -508,6 +515,26 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
               </button>
             </div>
           </div>
+
+          {/* Time Capsules Badge */}
+          {capsulesCount > 0 && (
+            <div className="mt-3 flex items-center gap-2">
+              <CapsuleBadge
+                count={capsulesCount}
+                onClick={() => {
+                  if (!canInteract) {
+                    alert("Please log in to view time capsules");
+                    return;
+                  }
+                  onCapsulesClick?.();
+                }}
+                compact={false}
+              />
+              <span className="text-xs text-purple-400/70">
+                {capsulesCount === 1 ? "Time capsule" : "Time capsules"} on this step
+              </span>
+            </div>
+          )}
 
           {/* Complete button - Only visible for owner on active nodes */}
           {isActive && isOwner && onComplete && (

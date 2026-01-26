@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores";
 import { api } from "@/lib/api";
+import { analytics } from "@/lib/analytics";
 
 export function useAuth(requireAuth = false) {
   const router = useRouter();
@@ -26,11 +27,13 @@ export function useAuth(requireAuth = false) {
     setTokens(tokens.access_token, tokens.refresh_token);
     const userData = await api.getCurrentUser();
     setUser(userData);
+    analytics.userLoggedIn(userData.id);
     return userData;
   };
 
   const register = async (data: { email: string; password: string; username: string; display_name?: string }) => {
-    await api.register(data);
+    const user = await api.register(data);
+    analytics.userRegistered(user.id, user.username);
     return login(data.email, data.password);
   };
 

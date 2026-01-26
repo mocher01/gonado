@@ -6,11 +6,13 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import dynamicImport from "next/dynamic";
 import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { api } from "@/lib/api";
+import { analytics } from "@/lib/analytics";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { NodeFormModal } from "@/components/quest-map/NodeFormModal";
@@ -256,7 +258,14 @@ function AuthHeader({
           {/* Avatar container */}
           <div className="relative w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 via-teal-600 to-cyan-700 flex items-center justify-center text-white text-sm font-bold overflow-hidden shadow-lg shadow-teal-500/20">
             {user.avatar_url ? (
-              <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+              <Image
+                src={user.avatar_url}
+                alt=""
+                width={36}
+                height={36}
+                className="w-full h-full object-cover"
+                unoptimized
+              />
             ) : (
               <span className="bg-gradient-to-br from-white to-amber-200 bg-clip-text text-transparent">
                 {initial}
@@ -413,7 +422,14 @@ function CommunityPulse({
                   style={{ zIndex: 4 - i }}
                 >
                   {f.avatarUrl ? (
-                    <img src={f.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    <Image
+                      src={f.avatarUrl}
+                      alt=""
+                      width={32}
+                      height={32}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
                   ) : (
                     f.username[0].toUpperCase()
                   )}
@@ -855,7 +871,14 @@ function VisitorSupportPanel({
                         <div className="flex gap-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                             {comment.avatarUrl ? (
-                              <img src={comment.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                              <Image
+                                src={comment.avatarUrl}
+                                alt=""
+                                width={32}
+                                height={32}
+                                className="w-full h-full rounded-full object-cover"
+                                unoptimized
+                              />
                             ) : (
                               comment.username[0].toUpperCase()
                             )}
@@ -905,7 +928,14 @@ function VisitorSupportPanel({
                               <div key={reply.id} className="flex gap-2">
                                 <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
                                   {reply.avatarUrl ? (
-                                    <img src={reply.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                                    <Image
+                                      src={reply.avatarUrl}
+                                      alt=""
+                                      width={24}
+                                      height={24}
+                                      className="w-full h-full rounded-full object-cover"
+                                      unoptimized
+                                    />
                                   ) : (
                                     reply.username[0].toUpperCase()
                                   )}
@@ -1159,7 +1189,14 @@ function OwnerStatsPanel({
                       >
                         <div className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center text-white text-[10px] font-bold">
                           {booster.avatarUrl ? (
-                            <img src={booster.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                            <Image
+                              src={booster.avatarUrl}
+                              alt=""
+                              width={20}
+                              height={20}
+                              className="w-full h-full rounded-full object-cover"
+                              unoptimized
+                            />
                           ) : (
                             booster.username[0].toUpperCase()
                           )}
@@ -1186,7 +1223,14 @@ function OwnerStatsPanel({
                       >
                         <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">
                           {follower.avatarUrl ? (
-                            <img src={follower.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                            <Image
+                              src={follower.avatarUrl}
+                              alt=""
+                              width={20}
+                              height={20}
+                              className="w-full h-full rounded-full object-cover"
+                              unoptimized
+                            />
                           ) : (
                             follower.username[0].toUpperCase()
                           )}
@@ -1210,7 +1254,14 @@ function OwnerStatsPanel({
                       <div key={comment.id} className="flex gap-3 p-3 rounded-lg bg-slate-900/50">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                           {comment.avatarUrl ? (
-                            <img src={comment.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                            <Image
+                              src={comment.avatarUrl}
+                              alt=""
+                              width={32}
+                              height={32}
+                              className="w-full h-full rounded-full object-cover"
+                              unoptimized
+                            />
                           ) : (
                             comment.username[0].toUpperCase()
                           )}
@@ -1405,7 +1456,7 @@ export default function GoalDetailPage() {
         .then((status) => setIsFollowing(status.is_following))
         .catch(() => {});
     }
-  }, [user, goalId, isPublic]);
+  }, [user, goalId, isPublic, goal]);
 
   const loadGoal = async () => {
     try {
@@ -1671,6 +1722,7 @@ export default function GoalDetailPage() {
   const handleCompleteNode = async (nodeId: string) => {
     try {
       await api.completeNode(nodeId);
+      analytics.nodeCompleted(nodeId, goalId);
       const nodesData = await api.getGoalNodes(goalId);
       setNodes(nodesData);
     } catch (err) {

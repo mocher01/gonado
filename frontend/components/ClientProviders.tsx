@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 const ServiceWorkerRegister = dynamic(() => import("@/components/pwa").then(mod => ({ default: mod.ServiceWorkerRegister })), { ssr: false });
 const InstallPrompt = dynamic(() => import("@/components/pwa").then(mod => ({ default: mod.InstallPrompt })), { ssr: false });
@@ -10,6 +11,7 @@ const Toaster = dynamic(() => import("react-hot-toast").then(mod => ({ default: 
 
 export function ClientProviders() {
   const [mounted, setMounted] = useState(false);
+  useAnalytics(); // Auto-track page views
 
   useEffect(() => {
     setMounted(true);

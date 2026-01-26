@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
+import { analytics } from "@/lib/analytics";
 
 type MessageRole = "user" | "assistant" | "system";
 
@@ -85,6 +86,13 @@ export default function NewGoalPage() {
         // Always check our specific conversation status
         const fullConv = await api.getConversation(conversation.id);
         if (fullConv?.status === "completed" && fullConv.goal_id) {
+          // Fetch goal details for analytics
+          try {
+            const goal = await api.getGoal(fullConv.goal_id);
+            analytics.goalCreated(goal.id, goal.title);
+          } catch (err) {
+            console.error("Failed to fetch goal for analytics:", err);
+          }
           // Update state and show visibility selector
           setConversation(prev => prev ? { ...prev, status: "completed", goal_id: fullConv.goal_id } : null);
           setCreatedGoalId(fullConv.goal_id);
