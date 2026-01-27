@@ -4,7 +4,9 @@ export const dynamic = "force-dynamic";
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import type { Goal } from "@/types";
 
 // Seeded random to avoid hydration mismatch (server/client produce same values)
 const seededRandom = (seed: number) => {
@@ -13,6 +15,28 @@ const seededRandom = (seed: number) => {
 };
 
 export default function Home() {
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchGoals = async () => {
+      try {
+        setLoading(true);
+        const response = await api.getGoals({ sort: "newest" });
+        setGoals(response.goals.slice(0, 6));
+        setError(false);
+      } catch (err) {
+        console.error("Failed to fetch goals:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGoals();
+  }, []);
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
@@ -38,7 +62,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="flex flex-col items-center justify-center min-h-screen p-8 pt-24">
+      <div className="flex flex-col items-center p-8 pt-24 py-24 md:py-32">
       {/* Hero Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -118,24 +142,110 @@ export default function Home() {
           </Link>
         </motion.div>
       </motion.div>
-
-        {/* Discover CTA */}
-        <motion.div
-          className="mt-16 text-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-        >
-          <p className="text-gray-500 mb-4">See what others are achieving</p>
-          <Link
-            href="/discover"
-            className="inline-flex items-center gap-2 text-primary-400 hover:text-primary-300 transition-colors"
-          >
-            <span>Explore Public Goals</span>
-            <span>&rarr;</span>
-          </Link>
-        </motion.div>
       </div>
+
+      {/* Inline Discovery Section */}
+      <section className="w-full bg-slate-900/50 py-16 px-8">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent mb-4">
+              See What Others Are Achieving
+            </h2>
+            <p className="text-gray-400">Join a community of goal achievers on their epic journeys</p>
+          </motion.div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 animate-pulse"
+                >
+                  <div className="h-6 bg-white/10 rounded mb-3"></div>
+                  <div className="h-4 bg-white/10 rounded w-1/2 mb-4"></div>
+                  <div className="h-3 bg-white/10 rounded w-3/4"></div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center">
+              <p className="text-gray-400 mb-6">Unable to load goals at the moment</p>
+              <Link
+                href="/discover"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full font-semibold hover:shadow-lg hover:shadow-primary-500/25 transition-all"
+              >
+                <span>View All Goals</span>
+                <span>&rarr;</span>
+              </Link>
+            </div>
+          ) : (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2 }}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
+              >
+                {goals.map((goal, index) => (
+                  <Link
+                    key={goal.id}
+                    href={`/goals/${goal.id}`}
+                    className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6 hover:bg-white/10 hover:border-white/20 transition-all duration-300 group"
+                  >
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-white group-hover:text-primary-300 transition-colors line-clamp-2 mb-2">
+                        {goal.title}
+                      </h3>
+                      {goal.description && (
+                        <p className="text-gray-400 text-sm line-clamp-2">
+                          {goal.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      {goal.category && (
+                        <span className="inline-block px-3 py-1 bg-primary-500/20 text-primary-300 rounded-full text-xs font-medium">
+                          {goal.category}
+                        </span>
+                      )}
+                      <span className={`text-xs font-medium px-2 py-1 rounded ${
+                        goal.status === "active"
+                          ? "bg-green-500/20 text-green-400"
+                          : goal.status === "completed"
+                          ? "bg-blue-500/20 text-blue-400"
+                          : "bg-yellow-500/20 text-yellow-400"
+                      }`}>
+                        {goal.status}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.4 }}
+                className="text-center"
+              >
+                <Link
+                  href="/discover"
+                  className="inline-flex items-center gap-2 px-8 py-4 bg-white/10 backdrop-blur-sm rounded-full font-semibold text-lg hover:bg-white/20 transition-all duration-300 border border-white/20"
+                >
+                  <span>View All Goals</span>
+                  <span>&rarr;</span>
+                </Link>
+              </motion.div>
+            </>
+          )}
+        </div>
+      </section>
 
       {/* Floating elements animation */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
