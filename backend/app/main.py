@@ -76,8 +76,9 @@ app = FastAPI(
 # Security middleware - rate limiting
 setup_rate_limiting(app)
 
-# CSRF protection (add before CORS)
-app.add_middleware(CSRFMiddleware, secret_key=settings.CSRF_SECRET)
+# CSRF protection - DISABLED until frontend implements CSRF token handling
+# TODO: Re-enable after adding CSRF token to frontend API client
+# app.add_middleware(CSRFMiddleware, secret_key=settings.CSRF_SECRET)
 
 # Security headers
 app.add_middleware(SecurityHeadersMiddleware)
