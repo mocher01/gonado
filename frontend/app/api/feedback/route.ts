@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as Sentry from "@sentry/nextjs";
 
 interface FeedbackRequest {
   category: "bug" | "feature" | "general";
@@ -27,8 +26,9 @@ export async function POST(request: NextRequest) {
     console.log(`User Agent: ${request.headers.get("user-agent")}`);
     console.log("========================");
 
-    // Send to Sentry as a message/event
+    // Send to Sentry as a message/event (dynamic import to avoid build issues)
     if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+      const Sentry = await import("@sentry/nextjs");
       Sentry.captureMessage(`Feedback [${category}]: ${message}`, {
         level: "info",
         tags: {
@@ -50,8 +50,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error processing feedback:", error);
 
-    // Log error to Sentry
+    // Log error to Sentry (dynamic import)
     if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+      const Sentry = await import("@sentry/nextjs");
       Sentry.captureException(error);
     }
 
