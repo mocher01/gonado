@@ -29,6 +29,8 @@ export interface Goal {
   // Mood indicator (Issue #67)
   current_mood: MoodType | null;
   mood_updated_at: string | null;
+  // Progress percentage (0-100)
+  progress?: number;
 }
 
 export type NodeType = "task" | "parallel_start" | "parallel_end" | "milestone";

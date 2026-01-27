@@ -124,16 +124,16 @@ function DiscoverPageContent() {
 
   const getCategoryIcon = (category: string | null) => {
     const icons: Record<string, string> = {
-      health: "*",
-      career: "*",
-      education: "*",
-      finance: "*",
-      relationships: "*",
-      creativity: "*",
-      personal: "*",
-      other: "*",
+      health: "💪",
+      career: "🚀",
+      education: "📚",
+      finance: "💰",
+      relationships: "👥",
+      creativity: "🎨",
+      personal: "🌟",
+      other: "📌",
     };
-    return icons[category || "other"] || "*";
+    return icons[category || "other"] || "📌";
   };
 
   // Mobile View - TikTok-style swipe feed
@@ -281,6 +281,13 @@ function DiscoverPageContent() {
         />
       </div>
 
+      {/* Results count */}
+      <div className="max-w-6xl mx-auto px-8 py-4">
+        <p className="text-gray-400">
+          {loading ? 'Searching...' : `${goals.length} goal${goals.length !== 1 ? 's' : ''} found`}
+        </p>
+      </div>
+
       {/* Goals Grid */}
       <div className="max-w-6xl mx-auto px-8 pb-16">
         {loading ? (
@@ -293,19 +300,27 @@ function DiscoverPageContent() {
           </div>
         ) : goals.length === 0 ? (
           <Card variant="glass" className="text-center py-16">
-            <div className="text-6xl mb-4">*</div>
+            <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-semibold text-white mb-2">
-              No public goals yet
+              No goals match your search
             </h3>
             <p className="text-gray-400 mb-6">
-              Be the first to share your journey with the world!
+              Try adjusting your filters or be the first to share a journey in this category!
             </p>
-            <Link
-              href="/register"
-              className="inline-block px-6 py-3 rounded-lg bg-gradient-to-r from-primary-500 to-accent-500 text-white font-medium"
-            >
-              Create Your First Goal
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={handleClearFilters}
+                className="px-6 py-3 rounded-lg bg-white/10 text-white font-medium hover:bg-white/20 transition-all"
+              >
+                Clear Filters
+              </button>
+              <Link
+                href="/register"
+                className="px-6 py-3 rounded-lg bg-gradient-to-r from-primary-500 to-accent-500 text-white font-medium"
+              >
+                Start Your Journey
+              </Link>
+            </div>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -364,9 +379,32 @@ function DiscoverPageContent() {
                             {goal.description}
                           </p>
                         )}
+                        {/* Progress bar */}
+                        {typeof goal.progress === 'number' && (
+                          <div className="mt-3">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="text-gray-400">Progress</span>
+                              <span className={`font-medium ${
+                                goal.progress >= 75 ? 'text-green-400' :
+                                goal.progress >= 50 ? 'text-yellow-400' :
+                                'text-gray-400'
+                              }`}>{goal.progress}%</span>
+                            </div>
+                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  goal.progress >= 75 ? 'bg-gradient-to-r from-green-500 to-emerald-400' :
+                                  goal.progress >= 50 ? 'bg-gradient-to-r from-yellow-500 to-orange-400' :
+                                  'bg-gradient-to-r from-primary-500 to-accent-500'
+                                }`}
+                                style={{ width: `${goal.progress}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
                         {goal.target_date && (
                           <p className="text-gray-500 text-xs mt-2 flex items-center gap-1">
-                            <span>*</span>
+                            <span>📅</span>
                             <span>
                               {new Date(goal.target_date).toLocaleDateString()}
                             </span>
