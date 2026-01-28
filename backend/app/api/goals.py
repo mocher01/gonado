@@ -14,6 +14,7 @@ from app.schemas.follow import TravelerResponse, TravelersListResponse
 from app.models.goal import Goal, GoalVisibility, GoalStatus
 from app.models.goal_share import GoalShare, ShareStatus
 from app.models.node import Node, NodeDependency
+from app.models.node_task import NodeTask
 from app.models.user import User
 from app.models.update import Update
 from app.models.interaction import Interaction, TargetType
@@ -146,6 +147,108 @@ async def generate_plan(
         await db.flush()
 
     return plan
+
+
+@router.post("/{goal_id}/generate-pedagogic-plan")
+@limiter.limit("5/minute")
+async def generate_pedagogic_plan(
+    request: Request,
+    goal_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate an AI-powered pedagogic plan with milestones and daily tasks."""
+
+    # 1. Fetch goal and verify ownership
+    result = await db.execute(
+        select(Goal).where(Goal.id == goal_id, Goal.user_id == current_user.id)
+    )
+    goal = result.scalar_one_or_none()
+
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    # 2. Check if goal already has nodes (optional: delete existing or error)
+    existing_nodes = await db.execute(
+        select(Node).where(Node.goal_id == goal_id)
+    )
+    if existing_nodes.scalars().first():
+        raise HTTPException(
+            status_code=400,
+            detail="Goal already has a plan. Delete existing nodes first."
+        )
+
+    # 3. Generate plan using AI service
+    # Handle case where target_date doesn't exist
+    target_date_str = None
+    if goal.target_date:
+        target_date_str = goal.target_date.isoformat()
+
+    plan = await ai_planner_service.generate_pedagogic_plan(
+        title=goal.title,
+        description=goal.description or "",
+        target_date=target_date_str or datetime.utcnow().isoformat(),
+        category=goal.category or "personal"
+    )
+
+    if "error" in plan:
+        raise HTTPException(status_code=500, detail=plan["error"])
+
+    # 4. Update goal's world_theme
+    if "world_theme" in plan:
+        goal.world_theme = plan["world_theme"]
+
+    # 5. Create nodes and tasks from plan
+    created_nodes = []
+    milestones = plan.get("milestones", [])
+
+    if not milestones:
+        raise HTTPException(
+            status_code=500,
+            detail="AI did not generate any milestones. Please try again."
+        )
+
+    for milestone in milestones:
+        node = Node(
+            goal_id=goal_id,
+            title=milestone["title"],
+            description=milestone.get("description", ""),
+            node_type="milestone",
+            order=milestone.get("order", len(created_nodes) + 1),
+            position_x=100 + (len(created_nodes) * 100),
+            position_y=400 - (len(created_nodes) * 50),
+            status="active" if milestone.get("order", 1) == 1 else "locked"
+        )
+        db.add(node)
+        await db.flush()  # Get node.id
+
+        # Create daily tasks for this milestone
+        for day in milestone.get("days", []):
+            task = NodeTask(
+                node_id=node.id,
+                day_number=day["day_number"],
+                action=day["action"],
+                why=day.get("why"),
+                tip=day.get("tip"),
+                duration=day.get("duration")
+            )
+            db.add(task)
+
+        created_nodes.append(node)
+
+    # Set goal status to active if it was planning
+    if goal.status == GoalStatus.PLANNING:
+        goal.status = GoalStatus.ACTIVE
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Generated {len(created_nodes)} milestones with daily tasks",
+        "world_theme": plan.get("world_theme"),
+        "milestone_count": len(created_nodes),
+        "total_days": sum(len(m.get("days", [])) for m in milestones)
+    }
 
 
 @router.get("", response_model=GoalListResponse)
