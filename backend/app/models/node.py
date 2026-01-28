@@ -76,6 +76,7 @@ class Node(Base):
     # Relationships
     goal = relationship("Goal", back_populates="nodes")
     updates = relationship("Update", back_populates="node", lazy="selectin")
+    tasks = relationship("NodeTask", back_populates="node", cascade="all, delete-orphan")
 
     # Dependency relationships
     depends_on = relationship(

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api import auth, users, goals, nodes, updates, interactions, gamification, notifications, discovery, media, generation_queue, chat, follows, comments, badges, goal_shares, activity, user_stats, prophecies, time_capsules, resource_drops, sacred_boosts, swaps
+from app.api import auth, users, goals, nodes, updates, interactions, gamification, notifications, discovery, media, generation_queue, chat, follows, comments, badges, goal_shares, activity, user_stats, prophecies, time_capsules, resource_drops, sacred_boosts, swaps, node_tasks
 
 api_router = APIRouter()
 
@@ -26,3 +26,5 @@ api_router.include_router(time_capsules.router, prefix="/time-capsules", tags=["
 api_router.include_router(resource_drops.router, prefix="/resource-drops", tags=["resource-drops"])
 api_router.include_router(sacred_boosts.router, prefix="/sacred-boosts", tags=["sacred-boosts"])
 api_router.include_router(swaps.router, prefix="/swaps", tags=["swaps"])
+api_router.include_router(node_tasks.router, prefix="/nodes", tags=["node-tasks"])
+api_router.include_router(node_tasks.task_router, prefix="/node-tasks", tags=["node-tasks"])
