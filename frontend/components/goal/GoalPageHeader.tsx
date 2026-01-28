@@ -38,6 +38,9 @@ interface GoalPageHeaderProps {
   onEditGoal?: () => void;
   onToggleVisibility?: () => void;
   onMoodChange?: (mood: MoodType | null) => void | Promise<void>;
+  onGeneratePlan?: () => void;
+  generatingPlan?: boolean;
+  goalStatus?: string;
   // Slots for complex components
   struggleSlot?: React.ReactNode;
   shareSlot?: React.ReactNode;
@@ -77,6 +80,9 @@ export function GoalPageHeader({
   onEditGoal,
   onToggleVisibility,
   onMoodChange,
+  onGeneratePlan,
+  generatingPlan = false,
+  goalStatus = "active",
   struggleSlot,
   shareSlot,
 }: GoalPageHeaderProps) {
@@ -293,6 +299,18 @@ export function GoalPageHeader({
                 {/* Owner quick actions - always visible, no menu */}
                 {isOwner && (
                   <div className="flex items-center gap-1">
+                    {/* Generate Plan button - only show in planning mode with no nodes */}
+                    {onGeneratePlan && goalStatus === "planning" && totalCount === 0 && (
+                      <button
+                        onClick={onGeneratePlan}
+                        disabled={generatingPlan}
+                        className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 rounded-lg text-purple-300 transition-all text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Generate AI plan with daily tasks"
+                      >
+                        <span className="text-sm">{generatingPlan ? "⏳" : "✨"}</span>
+                        <span>{generatingPlan ? "Generating..." : "AI Plan"}</span>
+                      </button>
+                    )}
                     {onAddNode && (
                       <button
                         onClick={onAddNode}

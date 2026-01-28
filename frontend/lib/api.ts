@@ -1,4 +1,4 @@
-import type { User, Goal, Node, Update, AuthTokens, Notification, LeaderboardEntry, CanInteractResponse, NodeWithDependencies, DependencyType, UserProfile } from "@/types";
+import type { User, Goal, Node, Update, AuthTokens, Notification, LeaderboardEntry, CanInteractResponse, NodeWithDependencies, DependencyType, UserProfile, NodeTask } from "@/types";
 
 // Use relative URL - requests proxied through Next.js rewrites to backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
@@ -214,8 +214,14 @@ class ApiClient {
     await this.fetch(`/goals/${id}`, { method: "DELETE" });
   }
 
-  async generatePlan(goalId: string): Promise<{ world_theme: string; nodes: Partial<Node>[] }> {
-    return this.fetch(`/goals/${goalId}/generate-plan`, { method: "POST" });
+  async generatePlan(goalId: string): Promise<{
+    success: boolean;
+    message: string;
+    world_theme: string;
+    milestone_count: number;
+    total_days: number;
+  }> {
+    return this.fetch(`/goals/${goalId}/generate-pedagogic-plan`, { method: "POST" });
   }
 
   async getGoalNodes(goalId: string): Promise<Node[]> {
@@ -306,6 +312,18 @@ class ApiClient {
     return this.fetch<Node>(`/nodes/${nodeId}/checklist`, {
       method: "PUT",
       body: JSON.stringify({ item_id: itemId, completed }),
+    });
+  }
+
+  // Node Tasks (Issue #82)
+  async getNodeTasks(nodeId: string): Promise<NodeTask[]> {
+    return this.fetch<NodeTask[]>(`/nodes/${nodeId}/tasks`);
+  }
+
+  async updateNodeTask(taskId: string, data: { is_completed?: boolean }): Promise<NodeTask> {
+    return this.fetch<NodeTask>(`/node-tasks/${taskId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
     });
   }
 

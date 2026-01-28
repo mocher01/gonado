@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { api } from "@/lib/api";
+import type { NodeTask } from "@/types";
 
 /**
  * NodeInteractionPopup - Compact Mystic Cartographer Design
@@ -108,6 +110,10 @@ export function NodeInteractionPopup({
   const popupRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
+  // Task state (Issue #82)
+  const [tasks, setTasks] = useState<NodeTask[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
@@ -129,6 +135,41 @@ export function NodeInteractionPopup({
       return () => document.removeEventListener("keydown", handleEscape);
     }
   }, [isOpen, onClose]);
+
+  // Load tasks when popup opens (Issue #82)
+  useEffect(() => {
+    if (isOpen && node.id && isOwner) {
+      loadTasks();
+    } else if (!isOpen) {
+      // Clear tasks when popup closes
+      setTasks([]);
+    }
+  }, [isOpen, node.id, isOwner]);
+
+  const loadTasks = async () => {
+    setLoadingTasks(true);
+    try {
+      const data = await api.getNodeTasks(node.id);
+      setTasks(data);
+    } catch (error) {
+      console.error("Failed to load tasks:", error);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  const handleToggleTask = async (task: NodeTask) => {
+    try {
+      await api.updateNodeTask(task.id, { is_completed: !task.is_completed });
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === task.id ? { ...t, is_completed: !t.is_completed } : t
+        )
+      );
+    } catch (error) {
+      console.error("Failed to update task:", error);
+    }
+  };
 
   const statusStyle = STATUS_CONFIG[node.status] || STATUS_CONFIG.pending;
   const reactions = socialSummary?.reactions || {
@@ -345,6 +386,70 @@ export function NodeInteractionPopup({
                   <span>⚡</span>
                   <span>Sacred Boost</span>
                 </motion.button>
+              )}
+
+              {/* Daily Tasks - Owner only (Issue #82) */}
+              {isOwner && tasks.length > 0 && (
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-slate-300">
+                      Daily Tasks
+                    </h4>
+                    <span className="text-xs text-slate-500">
+                      {tasks.filter((t) => t.is_completed).length}/{tasks.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {tasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className={`p-3 rounded-lg border transition-all ${
+                          task.is_completed
+                            ? "bg-green-500/10 border-green-500/30"
+                            : "bg-white/5 border-white/10"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <button
+                            onClick={() => handleToggleTask(task)}
+                            className={`w-5 h-5 rounded flex-shrink-0 border flex items-center justify-center transition-all ${
+                              task.is_completed
+                                ? "bg-green-500 border-green-500 text-white"
+                                : "border-slate-500 hover:border-primary-400"
+                            }`}
+                          >
+                            {task.is_completed && (
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className={`text-sm ${
+                                task.is_completed
+                                  ? "text-slate-400 line-through"
+                                  : "text-white"
+                              }`}
+                            >
+                              Day {task.day_number}: {task.action}
+                            </p>
+                            {task.why && (
+                              <p className="text-xs text-slate-500 mt-1">
+                                💡 {task.why}
+                              </p>
+                            )}
+                            {task.duration && (
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                ⏱️ {task.duration}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
             </motion.div>

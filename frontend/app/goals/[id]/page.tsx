@@ -1430,6 +1430,9 @@ export default function GoalDetailPage() {
   // Reaction polling state (Issue #39)
   const [socialDataLoaded, setSocialDataLoaded] = useState(false);
 
+  // Generate pedagogic plan state (Issue #82)
+  const [generatingPlan, setGeneratingPlan] = useState(false);
+
   const goalId = params.id as string;
   const isOwner = user && goal && user.id === goal.user_id;
   const isPublic = goal?.visibility === "public";
@@ -1728,20 +1731,24 @@ export default function GoalDetailPage() {
 
   // Goal management handlers
   const handleGeneratePlan = async () => {
-    setGenerating(true);
-    setError(null);
+    if (!goal) return;
+    setGeneratingPlan(true);
     try {
-      await api.generatePlan(goalId);
-      const [nodesData, goalData] = await Promise.all([
-        api.getGoalNodes(goalId),
-        api.getGoal(goalId),
-      ]);
-      setNodes(nodesData);
-      setGoal(goalData);
+      const result = await api.generatePlan(goal.id);
+      if (result.success) {
+        // Reload nodes and goal to show the generated plan
+        const [nodesData, goalData] = await Promise.all([
+          api.getGoalNodes(goalId),
+          api.getGoal(goalId),
+        ]);
+        setNodes(nodesData);
+        setGoal(goalData);
+        toast.success(`Generated ${result.milestone_count} milestones with ${result.total_days} daily tasks!`);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate plan");
+      toast.error(err instanceof Error ? err.message : "Failed to generate plan. Please try again.");
     } finally {
-      setGenerating(false);
+      setGeneratingPlan(false);
     }
   };
 
@@ -2672,6 +2679,9 @@ export default function GoalDetailPage() {
             onEditGoal={() => setShowEditGoalModal(true)}
             onToggleVisibility={handleToggleVisibility}
             onMoodChange={isOwner ? handleMoodChange : undefined}
+            onGeneratePlan={isOwner ? handleGeneratePlan : undefined}
+            generatingPlan={generatingPlan}
+            goalStatus={goal.status}
             struggleSlot={
               <StruggleBadge status={struggleStatus!} isOwner={!!isOwner} onDismiss={isOwner ? handleDismissStruggle : undefined} />
             }

@@ -180,3 +180,16 @@ export interface UserProfile {
   stats: UserStats | null;
   badges: UserBadge[];
 }
+
+export interface NodeTask {
+  id: string;
+  node_id: string;
+  day_number: number;
+  action: string;
+  why?: string;
+  tip?: string;
+  duration?: string;
+  is_completed: boolean;
+  completed_at?: string;
+  created_at: string;
+}
