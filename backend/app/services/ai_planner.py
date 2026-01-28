@@ -44,6 +44,51 @@ Choose a world_theme that matches the nature of the goal:
 - space: Innovation, technology, ambitious dreams
 - city: Urban projects, networking, social goals"""
 
+PEDAGOGIC_PLAN_PROMPT = '''You are a compassionate goal coach helping complete beginners achieve their dreams.
+
+Your job is to create a detailed, day-by-day action plan that:
+1. ASSUMES ZERO KNOWLEDGE - Never use jargon without explaining it first
+2. ONE ACTION PER DAY - Each day has exactly one clear task
+3. EXPLAINS WHY - Every task includes a simple reason
+4. INCLUDES REST - Rest days are explicit with light activities
+5. CELEBRATES PROGRESS - Each milestone ends with encouragement
+
+IMPORTANT PRINCIPLES:
+- Talk like a friendly mentor, not a textbook
+- If you would say "3-4 times per week", instead assign specific days
+- First week tasks should be VERY simple to build confidence
+- Include buffer days for life happening
+- Gradually increase complexity
+
+Generate a plan in this JSON format:
+{
+    "world_theme": "mountain|ocean|forest|desert|space|city",
+    "milestones": [
+        {
+            "title": "Milestone name",
+            "description": "What this phase accomplishes",
+            "order": 1,
+            "days": [
+                {
+                    "day_number": 1,
+                    "action": "Clear, specific action to take today",
+                    "why": "Simple explanation of why this matters",
+                    "tip": "Optional helpful tip or link",
+                    "duration": "Estimated time (e.g., '20 min')"
+                }
+            ],
+            "celebration": "Encouragement message when milestone complete"
+        }
+    ]
+}
+
+Remember:
+- Day 1 should be TRIVIALLY easy (build confidence)
+- Include rest days with stretching/reflection activities
+- Cover ALL days from now until target date
+- Each milestone should be 1-2 weeks maximum
+'''
+
 
 class AIPlannerService:
     def __init__(self):
@@ -142,6 +187,138 @@ class AIPlannerService:
                 }
             ]
         }
+
+    async def generate_pedagogic_plan(
+        self,
+        title: str,
+        description: str,
+        target_date: str,
+        category: str
+    ) -> Dict[str, Any]:
+        """Generate a detailed pedagogic plan with daily tasks."""
+        if not self.client:
+            return self._generate_default_pedagogic_plan(title, description, target_date)
+
+        # Calculate days until target
+        from datetime import datetime
+        target = datetime.fromisoformat(target_date.replace('Z', '+00:00'))
+        days_until = (target - datetime.now(target.tzinfo)).days
+
+        user_message = f'''Create a detailed day-by-day plan for this goal:
+
+Goal: {title}
+Description: {description}
+Category: {category}
+Days until target: {days_until} days
+Target date: {target_date}
+
+Generate a complete plan covering all {days_until} days with milestones and daily tasks.
+Remember: Assume the person has ZERO experience with this topic.'''
+
+        try:
+            response = self.client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4000,
+                system=PEDAGOGIC_PLAN_PROMPT,
+                messages=[{"role": "user", "content": user_message}]
+            )
+
+            content = response.content[0].text
+
+            # Parse JSON from response
+            json_start = content.find('{')
+            json_end = content.rfind('}') + 1
+            if json_start != -1 and json_end > json_start:
+                plan = json.loads(content[json_start:json_end])
+                return self._process_pedagogic_plan(plan)
+
+            return {"error": "Could not parse plan from AI response"}
+
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _generate_default_pedagogic_plan(self, title: str, description: str, target_date: str) -> Dict[str, Any]:
+        """Generate a simple default plan when AI is not available."""
+        from datetime import datetime, timedelta
+
+        # Calculate days until target
+        try:
+            target = datetime.fromisoformat(target_date.replace('Z', '+00:00'))
+            days_until = max((target - datetime.now(target.tzinfo)).days, 14)
+        except:
+            days_until = 30
+
+        # Create 3 milestones with sample daily tasks
+        days_per_milestone = days_until // 3
+
+        return {
+            "world_theme": "forest",
+            "milestones": [
+                {
+                    "title": "Getting Started",
+                    "description": f"Introduction to {title}",
+                    "order": 1,
+                    "days": [
+                        {
+                            "day_number": day,
+                            "action": f"Day {day} task for getting started",
+                            "why": "Building foundation and confidence",
+                            "tip": "Take it one step at a time",
+                            "duration": "15-20 min"
+                        }
+                        for day in range(1, days_per_milestone + 1)
+                    ],
+                    "celebration": "Great start! You've completed the first milestone."
+                },
+                {
+                    "title": "Building Skills",
+                    "description": "Developing core competencies",
+                    "order": 2,
+                    "days": [
+                        {
+                            "day_number": day,
+                            "action": f"Day {day} task for building skills",
+                            "why": "Strengthening your abilities",
+                            "tip": "Practice makes progress",
+                            "duration": "20-30 min"
+                        }
+                        for day in range(days_per_milestone + 1, days_per_milestone * 2 + 1)
+                    ],
+                    "celebration": "You're making real progress! Keep going."
+                },
+                {
+                    "title": "Final Push",
+                    "description": f"Achieving {title}",
+                    "order": 3,
+                    "days": [
+                        {
+                            "day_number": day,
+                            "action": f"Day {day} task for final push",
+                            "why": "Reaching your goal",
+                            "tip": "You're almost there!",
+                            "duration": "30 min"
+                        }
+                        for day in range(days_per_milestone * 2 + 1, days_until + 1)
+                    ],
+                    "celebration": "Congratulations! You've achieved your goal!"
+                }
+            ]
+        }
+
+    def _process_pedagogic_plan(self, plan: Dict[str, Any]) -> Dict[str, Any]:
+        """Process and validate the pedagogic plan from AI."""
+        # Ensure all required fields are present
+        if "milestones" not in plan:
+            return {"error": "Invalid plan format: missing milestones"}
+
+        # Validate each milestone has required fields
+        for milestone in plan.get("milestones", []):
+            if "days" not in milestone:
+                milestone["days"] = []
+            if "celebration" not in milestone:
+                milestone["celebration"] = "Great job completing this milestone!"
+
+        return plan
 
     def _add_positions(self, plan: Dict[str, Any]) -> Dict[str, Any]:
         """Add visual positions to nodes for quest map display."""
