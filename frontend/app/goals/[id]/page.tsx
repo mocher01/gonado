@@ -1608,7 +1608,7 @@ export default function GoalDetailPage() {
       setUserReaction((reactionsData.user_reaction as ElementType) || null);
 
       setComments(
-        (commentsData || []).map((c: any) => ({
+        ((commentsData?.comments) || []).map((c: any) => ({
           id: c.id,
           userId: c.user_id,
           username: c.user?.username || "unknown",

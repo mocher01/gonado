@@ -545,6 +545,10 @@ function BPMNQuestMapInner({
             // Permissions
             canInteract,
             isOwner,
+            // Social click to open popup
+            onSocialClick: onNodeSocialClick
+              ? (screenPos: { x: number; y: number }) => onNodeSocialClick(node, screenPos)
+              : undefined,
             themeColors: {
               nodeActive: theme.nodeActive,
               nodeCompleted: theme.nodeCompleted,
@@ -753,6 +757,14 @@ function BPMNQuestMapInner({
         nodesDraggable={isOwner}
         onNodesChange={isOwner ? onNodesChange : undefined}
         onNodeDragStop={isOwner ? onNodeDragStop : undefined}
+        onNodeClick={(event, node) => {
+          // Find the original node data and trigger social click
+          const originalNode = sortedNodes.find(n => n.id === node.id);
+          if (originalNode && onNodeSocialClick) {
+            const rect = (event.target as HTMLElement).getBoundingClientRect();
+            onNodeSocialClick(originalNode, { x: rect.left, y: rect.top });
+          }
+        }}
         defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
         minZoom={0.3}
         maxZoom={2}

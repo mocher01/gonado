@@ -92,6 +92,9 @@ interface TaskNodeData {
   canInteract?: boolean;  // false for anonymous users
   isOwner?: boolean;  // true for owner/admin
 
+  // Social click to open popup
+  onSocialClick?: (screenPos: { x: number; y: number }) => void;
+
   themeColors: {
     nodeActive: string;
     nodeCompleted: string;
@@ -164,6 +167,7 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
     onCapsulesClick,
     canInteract = true,
     isOwner = false,
+    onSocialClick,
     themeColors,
     extra_data
   } = data;
@@ -577,6 +581,21 @@ function TaskNodeComponent({ data, selected }: TaskNodeProps) {
               <span>🎉</span>
               <span>Completed!</span>
             </div>
+          )}
+
+          {/* Open details button - triggers NodeInteractionPopup */}
+          {onSocialClick && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const rect = (e.target as HTMLElement).getBoundingClientRect();
+                onSocialClick({ x: rect.left, y: rect.top });
+              }}
+              className="mt-4 w-full py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white border border-slate-600/30 hover:border-slate-500/50"
+            >
+              <span>💬</span>
+              <span>Open Details & Tasks</span>
+            </button>
           )}
         </div>
       </motion.div>

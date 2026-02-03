@@ -141,7 +141,6 @@ export function NodeInteractionPopup({
     if (isOpen && node.id && isOwner) {
       loadTasks();
     } else if (!isOpen) {
-      // Clear tasks when popup closes
       setTasks([]);
     }
   }, [isOpen, node.id, isOwner]);
